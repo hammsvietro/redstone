@@ -4,16 +4,22 @@ use crate::model::config::AuthData;
 pub fn assert_app_data_folder_is_created() -> std::io::Result<()> {
     let mut dir = dirs::home_dir().unwrap();
     dir.push(".redstone");
-    std::fs::create_dir_all(&dir)?;
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir)?;
+    }
     {
         let mut dir = dir.clone();
         dir.push("config");
-        std::fs::File::create(&dir).unwrap();
+        if !dir.exists() {
+            std::fs::File::create(&dir).unwrap();
+        }
     }
     {
         let mut dir = dir.clone();
         dir.push("auth");
-        std::fs::File::create(&dir).unwrap();
+        if !dir.exists() {
+            std::fs::File::create(&dir).unwrap();
+        }
     }
     Ok(())
 }
@@ -38,7 +44,6 @@ pub fn get_auth_dir() -> std::io::Result<PathBuf> {
 
 pub fn get_auth_data() -> std::io::Result<Option<AuthData>> {
     let auth_dir = get_auth_dir()?; 
-    println!("auth_dir: {auth_dir:?}");
     let content = std::fs::read_to_string(auth_dir)?;
     if content.len() == 0 {
         return Ok(None)
@@ -47,7 +52,6 @@ pub fn get_auth_data() -> std::io::Result<Option<AuthData>> {
         Err(err) => {
             let error = std::io::Error::new(ErrorKind::Other, err.to_string());
             return Err(error);
-
         }
         Ok(auth_data) => Ok(auth_data)
     }
@@ -55,7 +59,7 @@ pub fn get_auth_data() -> std::io::Result<Option<AuthData>> {
 
 pub fn set_auth_data(auth_data: AuthData) -> std::io::Result<()> {
     let auth_dir = get_auth_dir()?;
-    let data = &bincode::serialize(&auth_data).unwrap();
+    let data = &bincode::serialize(&Some(auth_data)).unwrap();
     std::fs::write(auth_dir, &data).unwrap();
     Ok(())
 }

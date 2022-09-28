@@ -15,13 +15,10 @@ pub fn get_jar() -> std::io::Result<Arc<Jar>> {
        }
        _ => ()
    }
-   jar.add_cookie_str("_redstone_server_web_user_remember_me=SFMyNTY.g2gDbQAAACAIJqcqmRSXHGnK76s4GjK-S5K7gdguWBFQ1Wt_M8BngG4GAAdghmuDAWIATxoA.leRSfliif3x5yBZOgSJgyeeVjur-zwnbg_4INbu5NCY; path=/; expires=Tue, 22 Nov 2022 18:05:12 GMT; max-age=5184000; HttpOnly; SameSite=Lax", &get_api_base_url());
    Ok(Arc::new(jar))
 }
 
 pub fn set_cookie(jar: Arc<Jar>, cookie: &str) -> () {
     let url = &get_api_base_url();
     jar.add_cookie_str(cookie, url);
-    let cookies = jar.cookies(url);
-    println!("\n\n\ncookies: {cookies:?}");
 }
