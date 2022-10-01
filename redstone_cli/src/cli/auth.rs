@@ -18,14 +18,17 @@ pub fn run_auth_cmd() -> std::io::Result<()> {
         .json(&auth_request)
         .send();
 
-    if let Err(_) = res {
-        println!("Something went wrong");
+    if let Err(err) = res {
+        if err.is_request() {
+            println!("Could not connect to the provided endpoint ({}).", base_url.to_string());
+        } else {
+            println!("Something went wrong");
+        }
         return Ok(());
     }
     let res = res.unwrap();
-    println!("{:?}", res.status());
-    if res.status() != reqwest::StatusCode::OK {
-        println!("Couldn't login\nCheck if the server url ({}) or the email and password provided is correct", &base_url.as_str());
+    if res.status() == reqwest::StatusCode::FORBIDDEN {
+        println!("Incorrect Credentails");
         return Ok(())
     }
     let auth_cookies = String::from(cookie_jar.cookies(&base_url).unwrap().to_str().unwrap());
