@@ -1,6 +1,10 @@
 use std::io::Write;
 
-use redstone_common::{api::{AuthRequest, jar::get_jar, get_api_base_url}, config::{set_auth_data,get_auth_data}, model::config::AuthData};
+use redstone_common::{
+    api::{get_api_base_url, jar::get_jar, AuthRequest},
+    config::set_auth_data,
+    model::config::AuthData,
+};
 use reqwest::cookie::CookieStore;
 
 pub fn run_auth_cmd() -> std::io::Result<()> {
@@ -20,7 +24,10 @@ pub fn run_auth_cmd() -> std::io::Result<()> {
 
     if let Err(err) = res {
         if err.is_request() {
-            println!("Could not connect to the provided endpoint ({}).", base_url.to_string());
+            println!(
+                "Could not connect to the provided endpoint ({}).",
+                base_url.to_string()
+            );
         } else {
             println!("Something went wrong");
         }
@@ -29,7 +36,7 @@ pub fn run_auth_cmd() -> std::io::Result<()> {
     let res = res.unwrap();
     if res.status() == reqwest::StatusCode::FORBIDDEN {
         println!("Incorrect Credentails");
-        return Ok(())
+        return Ok(());
     }
     let auth_cookies = String::from(cookie_jar.cookies(&base_url).unwrap().to_str().unwrap());
     set_auth_data(AuthData::new(auth_cookies))?;

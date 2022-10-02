@@ -1,6 +1,9 @@
 use std::{env::current_dir, path::PathBuf, str::FromStr};
 
-use redstone_common::model::{fs_tree::FSTree, track::TrackRequest, ipc::{IpcMessage, IpcMessageRequest, IpcMessageRequestType, ConfirmationRequest, IpcMessageResponse}};
+use redstone_common::model::{
+    ipc::{ConfirmationRequest, IpcMessage, IpcMessageRequest, IpcMessageRequestType},
+    track::TrackRequest,
+};
 
 use crate::{
     ipc::socket::{send_and_receive, stablish_connection},
@@ -11,9 +14,8 @@ use super::models::TrackArgs;
 
 pub fn run_track_cmd(track_args: TrackArgs) -> std::io::Result<()> {
     let path_buf = get_target_path(track_args.path);
-    let files_to_track = FSTree::new(path_buf, None);
     let track_request = TrackRequest {
-        fs_tree: files_to_track,
+        base_path: path_buf,
         detatched: track_args.detached,
         sync_every: track_args.sync_every,
         watch: track_args.watch,
@@ -29,7 +31,7 @@ pub fn run_track_cmd(track_args: TrackArgs) -> std::io::Result<()> {
     if !confirmation_response.keep_connection {
         return Ok(());
     }
-    let received_message = send_and_receive(&mut conn, IpcMessage::from(confirmation_response));
+    let _received_message = send_and_receive(&mut conn, IpcMessage::from(confirmation_response));
     Ok(())
 }
 

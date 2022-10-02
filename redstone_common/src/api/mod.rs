@@ -5,7 +5,7 @@ pub mod jar;
 #[derive(Serialize, Debug)]
 pub struct AuthRequest {
     pub email: String,
-    pub password: String
+    pub password: String,
 }
 
 impl AuthRequest {

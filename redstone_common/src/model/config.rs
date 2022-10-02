@@ -1,14 +1,14 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AuthData {
-    pub cookies: Option<String> 
+    pub cookies: Option<String>,
 }
 
 impl AuthData {
     pub fn new(cookies: String) -> Self {
         Self {
-            cookies: Some(cookies)
+            cookies: Some(cookies),
         }
     }
 }

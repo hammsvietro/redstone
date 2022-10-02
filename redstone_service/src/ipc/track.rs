@@ -1,5 +1,10 @@
 use interprocess::local_socket::LocalSocketStream;
-use redstone_common::model::{track::{TrackRequest, TrackMessageResponse}, ipc::{IpcMessage, IpcMessageResponseType, IpcMessageResponse, ConfirmationRequest}, backup::IndexFile, fs_tree::{FSTreeItem, FSTree}};
+use redstone_common::model::{
+    backup::IndexFile,
+    fs_tree::{FSTree, FSTreeItem},
+    ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
+    track::{TrackMessageResponse, TrackRequest},
+};
 use std::{borrow::BorrowMut, io::Write, path::PathBuf};
 
 use super::socket_loop::prompt_action_confirmation;
@@ -11,7 +16,8 @@ pub async fn handle_track_msg(
     let message = TrackMessageResponse {
         data: String::from("=)"),
     };
-    let index_file_path = track_request.fs_tree.get_index_file_for_root();
+    let fs_tree = FSTree::new(track_request.base_path.clone(), None);
+    let index_file_path = fs_tree.get_index_file_for_root();
     if index_file_path.exists() {
         return wrap(IpcMessageResponse {
             keep_connection: false,
@@ -22,7 +28,7 @@ pub async fn handle_track_msg(
     //
     // TODO: ping server, check for resource availability and request backup id
     let confirmation_request = ConfirmationRequest {
-        message: get_confirmation_request_message(&track_request.fs_tree),
+        message: get_confirmation_request_message(&fs_tree),
     };
     let confirmation_result =
         match prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await {
@@ -36,7 +42,7 @@ pub async fn handle_track_msg(
             message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
         });
     }
-    create_files(&index_file_path, track_request.borrow_mut()).unwrap();
+    create_files(&index_file_path, track_request.borrow_mut(), &fs_tree).unwrap();
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
@@ -53,7 +59,7 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     for item in fs_tree.get_first_depth() {
         message += match item {
             FSTreeItem::File(file) => file.path.as_str(),
-            FSTreeItem::Folder(folder) => folder.path.as_str()
+            FSTreeItem::Folder(folder) => folder.path.as_str(),
         };
         message += "\n"
     }
@@ -64,12 +70,14 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
 fn create_files(
     index_file_path: &PathBuf,
     track_request: &mut TrackRequest,
+    fs_tree: &FSTree,
 ) -> std::io::Result<()> {
     let parent_folders = index_file_path.parent();
     if let Some(folder_path) = parent_folders {
         std::fs::create_dir_all(folder_path).unwrap();
     }
     let mut index_file = std::fs::File::create(index_file_path).unwrap();
-    let index_file_content = bincode::serialize(&IndexFile::from(track_request.clone())).unwrap();
+    let index_file_content =
+        bincode::serialize(&IndexFile::new(track_request.clone(), fs_tree)).unwrap();
     index_file.write_all(&index_file_content)
 }

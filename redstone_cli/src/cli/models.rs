@@ -10,7 +10,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     Track(TrackArgs),
-    Auth
+    Auth,
 }
 
 #[derive(Debug, Args)]

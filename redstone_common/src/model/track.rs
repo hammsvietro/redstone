@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-use super::fs_tree::FSTree;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TrackRequest {
-    pub fs_tree: FSTree,
+    pub base_path: PathBuf,
     pub detatched: bool,
     pub sync_every: Option<String>,
     pub watch: bool,

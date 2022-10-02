@@ -1,5 +1,5 @@
-pub mod config;
 pub mod backup;
-pub mod ipc;
+pub mod config;
 pub mod fs_tree;
+pub mod ipc;
 pub mod track;

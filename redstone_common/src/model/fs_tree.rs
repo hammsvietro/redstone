@@ -16,7 +16,7 @@ pub enum FSTreeItem {
 pub struct RSFile {
     pub path: String,
     pub sha_256_digest: String,
-    pub depth: u16
+    pub depth: u16,
 }
 
 impl RSFile {
@@ -24,7 +24,7 @@ impl RSFile {
         Self {
             path,
             sha_256_digest,
-            depth
+            depth,
         }
     }
 }
@@ -33,7 +33,7 @@ impl RSFile {
 pub struct RSFolder {
     pub path: String,
     pub items: Vec<FSTreeItem>,
-    pub depth: u16
+    pub depth: u16,
 }
 
 impl RSFolder {
@@ -56,7 +56,7 @@ impl FSTree {
             files: Vec::new(),
             max_depth,
         };
-        fs_tree.files = read_dir(fs_tree.root.clone(), 0, max_depth, &mut Vec::new()).unwrap();
+        fs_tree.files = read_dir(&fs_tree.root, 0, max_depth, &mut Vec::new()).unwrap();
 
         fs_tree
     }
@@ -67,12 +67,14 @@ impl FSTree {
     }
 
     pub fn get_first_depth(&self) -> Vec<&FSTreeItem> {
-        let mut items: Vec<&FSTreeItem> = self.files.iter().filter(|item| {
-            match item {
+        let mut items: Vec<&FSTreeItem> = self
+            .files
+            .iter()
+            .filter(|item| match item {
                 FSTreeItem::File(file) => file.depth <= 1,
-                FSTreeItem::Folder(folder) => folder.depth <= 1
-            }
-        }).collect();
+                FSTreeItem::Folder(folder) => folder.depth <= 1,
+            })
+            .collect();
         items.sort();
         items
     }
@@ -83,7 +85,12 @@ pub fn to_index_path(path: &mut PathBuf) {
     path.push("index");
 }
 
-fn read_dir(dir: PathBuf, depth: u16, max_depth: Option<u16>, ignores: &mut Vec<String>) -> Result<Vec<FSTreeItem>, Error> {
+fn read_dir(
+    dir: &PathBuf,
+    depth: u16,
+    max_depth: Option<u16>,
+    ignores: &mut Vec<String>,
+) -> Result<Vec<FSTreeItem>, Error> {
     let mut file_tree_items = Vec::new();
     if max_depth.is_some() && depth > max_depth.unwrap() {
         return Ok(file_tree_items);
@@ -95,6 +102,7 @@ fn read_dir(dir: PathBuf, depth: u16, max_depth: Option<u16>, ignores: &mut Vec<
         if dir.exists() {
             ignores.push(String::from(dir.to_str().unwrap()));
         }
+        dir.push("..");
     }
 
     let mut builder_base = WalkBuilder::new(&dir);
@@ -112,8 +120,8 @@ fn read_dir(dir: PathBuf, depth: u16, max_depth: Option<u16>, ignores: &mut Vec<
         let path = PathBuf::from(entry.path());
         let file_path = String::from(path.to_str().unwrap());
 
-        if path.is_dir() && path != dir {
-            let entry_content = read_dir(path, depth + 1, max_depth, ignores)?;
+        if path.is_dir() && path != *dir {
+            let entry_content = read_dir(&path, depth + 1, max_depth, ignores)?;
             let folder = RSFolder::new(file_path, entry_content, depth);
             file_tree_items.push(FSTreeItem::Folder(folder));
         } else if path.is_file() {
@@ -146,7 +154,7 @@ mod tests {
                     ),
                     0,
                 ))],
-                0
+                0,
             )),
             FSTreeItem::File(RSFile::new(
                 String::from("./test-data/hello.ex"),

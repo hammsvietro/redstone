@@ -1,7 +1,7 @@
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     constants::{IPC_BUFFER_SIZE, IPC_SOCKET_PATH},
-    model::ipc::{IpcMessage, IpcMessageRequest, IpcMessageResponse},
+    model::ipc::IpcMessage,
 };
 use std::{
     borrow::BorrowMut,

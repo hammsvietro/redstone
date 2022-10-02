@@ -1,5 +1,5 @@
-pub mod models;
 mod auth;
+pub mod models;
 mod track;
 
 use clap::Parser;
