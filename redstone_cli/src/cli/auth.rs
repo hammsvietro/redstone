@@ -1,7 +1,11 @@
 use std::io::Write;
 
 use redstone_common::{
-    api::{get_api_base_url, jar::get_jar, AuthRequest},
+    api::{
+        jar::get_jar,
+        get_api_base_url,
+        AuthRequest
+    },
     config::set_auth_data,
     model::config::AuthData,
 };

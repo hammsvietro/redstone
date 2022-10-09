@@ -1,4 +1,6 @@
-use reqwest::Url;
+use std::sync::Arc;
+
+use reqwest::{Url, cookie::Jar};
 use serde::Serialize;
 pub mod jar;
 
@@ -18,4 +20,20 @@ const API_BASE_URL: &'static str = "http://localhost:4000";
 
 pub fn get_api_base_url() -> Url {
     API_BASE_URL.parse().unwrap()
+}
+
+pub fn get_http_client(cookie_jar: Arc<Jar>) -> reqwest::Client  {
+    reqwest::ClientBuilder::new()
+        .cookie_store(true)
+        .cookie_provider(cookie_jar.clone())
+        .build()
+        .unwrap()
+}
+
+pub fn get_blocking_http_client(cookie_jar: Arc<Jar>) -> reqwest::blocking::Client {
+    reqwest::blocking::ClientBuilder::new()
+        .cookie_store(true)
+        .cookie_provider(cookie_jar.clone())
+        .build()
+        .unwrap()
 }

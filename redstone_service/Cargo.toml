@@ -15,3 +15,4 @@ bincode = "1.3.3"
 cron = "0.11.0"
 chrono = "0.4"
 reqwest = { version = "0.11", features = ["json", "cookies"] }
+serde_json = "1.0.85"

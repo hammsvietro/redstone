@@ -56,7 +56,8 @@ impl FSTree {
             files: Vec::new(),
             max_depth,
         };
-        fs_tree.files = read_dir(&fs_tree.root, 0, max_depth, &mut Vec::new()).unwrap();
+        let root_as_string = &fs_tree.root.to_str().unwrap();
+        fs_tree.files = read_dir(&fs_tree.root, 0, max_depth, root_as_string, &mut Vec::new()).unwrap();
 
         fs_tree
     }
@@ -89,6 +90,7 @@ fn read_dir(
     dir: &PathBuf,
     depth: u16,
     max_depth: Option<u16>,
+    root: &str,
     ignores: &mut Vec<String>,
 ) -> Result<Vec<FSTreeItem>, Error> {
     let mut file_tree_items = Vec::new();
@@ -118,10 +120,15 @@ fn read_dir(
     {
         let entry = entry?;
         let path = PathBuf::from(entry.path());
-        let file_path = String::from(path.to_str().unwrap());
+        let file_path = String::from(
+            remove_prefix(
+                path.to_str().unwrap(),
+                root
+            )
+        );
 
         if path.is_dir() && path != *dir {
-            let entry_content = read_dir(&path, depth + 1, max_depth, ignores)?;
+            let entry_content = read_dir(&path, depth + 1, max_depth, root, ignores)?;
             let folder = RSFolder::new(file_path, entry_content, depth);
             file_tree_items.push(FSTreeItem::Folder(folder));
         } else if path.is_file() {
@@ -170,5 +177,12 @@ mod tests {
         assert_eq!(target_fs_tree.max_depth, fs_tree.max_depth);
         assert_eq!(target_fs_tree.root, fs_tree.root);
         assert_eq!(target_fs_tree.files.sort(), fs_tree.files.sort());
+    }
+}
+
+fn remove_prefix<'a>(s: &'a str, suffix: &str) -> &'a str {
+    match s.strip_prefix(suffix) {
+        Some(s) => s,
+        None => s
     }
 }

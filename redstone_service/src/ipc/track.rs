@@ -1,10 +1,10 @@
 use interprocess::local_socket::LocalSocketStream;
-use redstone_common::model::{
+use redstone_common::{model::{
     backup::IndexFile,
     fs_tree::{FSTree, FSTreeItem},
     ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
     track::{TrackMessageResponse, TrackRequest},
-};
+}, api::{get_http_client, jar::get_jar, get_api_base_url}};
 use std::{borrow::BorrowMut, io::Write, path::PathBuf};
 
 use super::socket_loop::prompt_action_confirmation;
@@ -43,6 +43,11 @@ pub async fn handle_track_msg(
         });
     }
     create_files(&index_file_path, track_request.borrow_mut(), &fs_tree).unwrap();
+
+    // let cookie_jar = get_jar().unwrap();
+    // get_http_client(cookie_jar);
+    // let base_url = get_api_base_url();
+
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
