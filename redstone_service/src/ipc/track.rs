@@ -1,10 +1,13 @@
 use interprocess::local_socket::LocalSocketStream;
-use redstone_common::{model::{
-    backup::IndexFile,
-    fs_tree::{FSTree, FSTreeItem},
-    ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
-    track::{TrackMessageResponse, TrackRequest},
-}, api::{get_http_client, jar::get_jar, get_api_base_url}};
+use redstone_common::{
+    api::{get_api_base_url, get_http_client, jar::get_jar},
+    model::{
+        backup::IndexFile,
+        fs_tree::{FSTree, FSTreeItem},
+        ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
+        track::{TrackMessageResponse, TrackRequest},
+    },
+};
 use std::{borrow::BorrowMut, io::Write, path::PathBuf};
 
 use super::socket_loop::prompt_action_confirmation;
@@ -25,8 +28,7 @@ pub async fn handle_track_msg(
             message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
         });
     }
-    //
-    // TODO: ping server, check for resource availability and request backup id
+
     let confirmation_request = ConfirmationRequest {
         message: get_confirmation_request_message(&fs_tree),
     };
@@ -42,11 +44,17 @@ pub async fn handle_track_msg(
             message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
         });
     }
-    create_files(&index_file_path, track_request.borrow_mut(), &fs_tree).unwrap();
 
-    // let cookie_jar = get_jar().unwrap();
-    // get_http_client(cookie_jar);
-    // let base_url = get_api_base_url();
+    // create_files(&index_file_path, track_request.borrow_mut(), &fs_tree).unwrap();
+
+    let cookie_jar = get_jar().unwrap();
+    let base_url = get_api_base_url();
+    get_http_client(cookie_jar)
+        .post(base_url.join("/api/upload/declare").unwrap())
+        .json(&fs_tree)
+        .send()
+        .await
+        .unwrap();
 
     wrap(IpcMessageResponse {
         keep_connection: false,

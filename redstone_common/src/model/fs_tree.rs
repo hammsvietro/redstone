@@ -17,14 +17,16 @@ pub struct RSFile {
     pub path: String,
     pub sha_256_digest: String,
     pub depth: u16,
+    pub size: u64,
 }
 
 impl RSFile {
-    pub fn new(path: String, sha_256_digest: String, depth: u16) -> Self {
+    pub fn new(path: String, sha_256_digest: String, depth: u16, size: u64) -> Self {
         Self {
             path,
             sha_256_digest,
             depth,
+            size,
         }
     }
 }
@@ -57,7 +59,8 @@ impl FSTree {
             max_depth,
         };
         let root_as_string = &fs_tree.root.to_str().unwrap();
-        fs_tree.files = read_dir(&fs_tree.root, 0, max_depth, root_as_string, &mut Vec::new()).unwrap();
+        fs_tree.files =
+            read_dir(&fs_tree.root, 0, max_depth, root_as_string, &mut Vec::new()).unwrap();
 
         fs_tree
     }
@@ -120,20 +123,15 @@ fn read_dir(
     {
         let entry = entry?;
         let path = PathBuf::from(entry.path());
-        let file_path = String::from(
-            remove_prefix(
-                path.to_str().unwrap(),
-                root
-            )
-        );
-
-        if path.is_dir() && path != *dir {
+        let file_path = build_relative_file_path(&path, root);
+        if path.is_dir() && ((path != *dir) ^ (depth == 0)) {
             let entry_content = read_dir(&path, depth + 1, max_depth, root, ignores)?;
             let folder = RSFolder::new(file_path, entry_content, depth);
             file_tree_items.push(FSTreeItem::Folder(folder));
-        } else if path.is_file() {
+        } else if path.is_file() && depth != 0 {
             let sha256_digest: Sha256Digest = generate_sha256_digest(&path).unwrap();
-            let file = RSFile::new(file_path, sha256_digest, depth);
+            let size = std::fs::metadata(&path)?.len();
+            let file = RSFile::new(file_path, sha256_digest, depth, size);
             file_tree_items.push(FSTreeItem::File(file));
         }
     }
@@ -160,6 +158,7 @@ mod tests {
                         "982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64",
                     ),
                     0,
+                    200 as u64,
                 ))],
                 0,
             )),
@@ -167,6 +166,7 @@ mod tests {
                 String::from("./test-data/hello.ex"),
                 String::from("1d8326dc32bc35812503ecfcce8ca3db0f025fb84d589df4e687b96f6cdf03fe"),
                 0,
+                200 as u64,
             )),
         ];
         let mut target_fs_tree = FSTree {
@@ -180,9 +180,17 @@ mod tests {
     }
 }
 
+fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
+    let suffix = match root.ends_with("/") {
+        true => String::from(root),
+        false => String::from(root) + "/",
+    };
+    String::from(remove_prefix(path.to_str().unwrap(), &suffix))
+}
+
 fn remove_prefix<'a>(s: &'a str, suffix: &str) -> &'a str {
     match s.strip_prefix(suffix) {
         Some(s) => s,
-        None => s
+        None => s,
     }
 }
