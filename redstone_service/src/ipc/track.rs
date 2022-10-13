@@ -3,6 +3,7 @@ use redstone_common::{
     api::{get_api_base_url, get_http_client, jar::get_jar},
     model::{
         backup::IndexFile,
+        api::DeclareBackupRequest,
         fs_tree::{FSTree, FSTreeItem},
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
         track::{TrackMessageResponse, TrackRequest},
@@ -47,11 +48,13 @@ pub async fn handle_track_msg(
 
     // create_files(&index_file_path, track_request.borrow_mut(), &fs_tree).unwrap();
 
+    let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
+
     let cookie_jar = get_jar().unwrap();
     let base_url = get_api_base_url();
     get_http_client(cookie_jar)
         .post(base_url.join("/api/upload/declare").unwrap())
-        .json(&fs_tree)
+        .json(&request)
         .send()
         .await
         .unwrap();

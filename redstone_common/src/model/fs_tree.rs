@@ -123,9 +123,12 @@ fn read_dir(
     {
         let entry = entry?;
         let path = PathBuf::from(entry.path());
-        let file_path = build_relative_file_path(&path, root);
+        let mut file_path = build_relative_file_path(&path, root);
         if path.is_dir() && ((path != *dir) ^ (depth == 0)) {
             let entry_content = read_dir(&path, depth + 1, max_depth, root, ignores)?;
+            if depth == 0 {
+                file_path = String::from(".")
+            }
             let folder = RSFolder::new(file_path, entry_content, depth);
             file_tree_items.push(FSTreeItem::Folder(folder));
         } else if path.is_file() && depth != 0 {

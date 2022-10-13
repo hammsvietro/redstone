@@ -1,3 +1,4 @@
+pub mod api;
 pub mod backup;
 pub mod config;
 pub mod fs_tree;
