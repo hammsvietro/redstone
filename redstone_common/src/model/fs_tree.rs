@@ -1,6 +1,6 @@
 use ignore::{Error, WalkBuilder};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, path::PathBuf};
+use std::{borrow::Borrow, fmt::Debug, path::PathBuf};
 
 use crate::util::generate_sha256_digest;
 
@@ -34,19 +34,19 @@ impl RSFile {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct RSFolder {
     pub path: String,
-    pub items: Vec<FSTreeItem>,
+    pub items: Vec<RSFile>,
     pub depth: u16,
 }
 
 impl RSFolder {
-    pub fn new(path: String, items: Vec<FSTreeItem>, depth: u16) -> Self {
+    pub fn new(path: String, items: Vec<RSFile>, depth: u16) -> Self {
         Self { path, items, depth }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct FSTree {
-    pub files: Vec<FSTreeItem>,
+    pub files: Vec<RSFile>,
     pub root: PathBuf,
     pub max_depth: Option<u16>,
 }
@@ -70,16 +70,9 @@ impl FSTree {
         path
     }
 
-    pub fn get_first_depth(&self) -> Vec<&FSTreeItem> {
-        let mut items: Vec<&FSTreeItem> = self
-            .files
-            .iter()
-            .filter(|item| match item {
-                FSTreeItem::File(file) => file.depth <= 1,
-                FSTreeItem::Folder(folder) => folder.depth <= 1,
-            })
-            .collect();
-        items.sort();
+    pub fn get_first_depth(&self) -> Vec<&RSFile> {
+        let mut items: Vec<&RSFile> = self.files.iter().filter(|item| item.depth <= 1).collect();
+        items.sort_by(|a, b| a.depth.partial_cmp(&(*b).depth).unwrap());
         items
     }
 }
@@ -95,7 +88,7 @@ fn read_dir(
     max_depth: Option<u16>,
     root: &str,
     ignores: &mut Vec<String>,
-) -> Result<Vec<FSTreeItem>, Error> {
+) -> Result<Vec<RSFile>, Error> {
     let mut file_tree_items = Vec::new();
     if max_depth.is_some() && depth > max_depth.unwrap() {
         return Ok(file_tree_items);
@@ -123,19 +116,14 @@ fn read_dir(
     {
         let entry = entry?;
         let path = PathBuf::from(entry.path());
-        let mut file_path = build_relative_file_path(&path, root);
-        if path.is_dir() && ((path != *dir) ^ (depth == 0)) {
-            let entry_content = read_dir(&path, depth + 1, max_depth, root, ignores)?;
-            if depth == 0 {
-                file_path = String::from(".")
-            }
-            let folder = RSFolder::new(file_path, entry_content, depth);
-            file_tree_items.push(FSTreeItem::Folder(folder));
-        } else if path.is_file() && depth != 0 {
+        if path.is_dir() && path != *dir {
+            file_tree_items.extend(read_dir(&path, depth + 1, max_depth, root, ignores)?);
+        } else if path.is_file() {
+            let file_path = build_relative_file_path(&path, root);
             let sha256_digest: Sha256Digest = generate_sha256_digest(&path).unwrap();
             let size = std::fs::metadata(&path)?.len();
             let file = RSFile::new(file_path, sha256_digest, depth, size);
-            file_tree_items.push(FSTreeItem::File(file));
+            file_tree_items.push(file);
         }
     }
     return Ok(file_tree_items);
@@ -143,34 +131,28 @@ fn read_dir(
 
 #[cfg(test)]
 mod tests {
-    use crate::model::fs_tree::{RSFile, RSFolder};
+    use crate::model::fs_tree::RSFile;
     use std::{path::PathBuf, str::FromStr};
 
-    use super::{FSTree, FSTreeItem};
+    use super::FSTree;
 
     #[test]
     fn scans_a_directory_recursively() {
         let path = PathBuf::from_str("./test-data").unwrap();
         let mut fs_tree = FSTree::new(path.clone(), None);
         let files = vec![
-            FSTreeItem::Folder(RSFolder::new(
-                String::from("./test-data/other_folder"),
-                vec![FSTreeItem::File(RSFile::new(
-                    String::from("./test-data/other_folder/other_file.hs"),
-                    String::from(
-                        "982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64",
-                    ),
-                    0,
-                    200 as u64,
-                ))],
-                0,
-            )),
-            FSTreeItem::File(RSFile::new(
-                String::from("./test-data/hello.ex"),
-                String::from("1d8326dc32bc35812503ecfcce8ca3db0f025fb84d589df4e687b96f6cdf03fe"),
+            RSFile::new(
+                String::from("./test-data/other_folder/other_file.hs"),
+                String::from("982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64"),
                 0,
                 200 as u64,
-            )),
+            ),
+            RSFile::new(
+                String::from("./test-data/other_folder/other_file.hs"),
+                String::from("982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64"),
+                0,
+                200 as u64,
+            ),
         ];
         let mut target_fs_tree = FSTree {
             files,

@@ -2,14 +2,14 @@ use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     api::{get_api_base_url, get_http_client, jar::get_jar},
     model::{
-        backup::IndexFile,
         api::DeclareBackupRequest,
+        backup::IndexFile,
         fs_tree::{FSTree, FSTreeItem},
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
         track::{TrackMessageResponse, TrackRequest},
     },
 };
-use std::{borrow::BorrowMut, io::Write, path::PathBuf};
+use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
 
 use super::socket_loop::prompt_action_confirmation;
 
@@ -49,6 +49,7 @@ pub async fn handle_track_msg(
     // create_files(&index_file_path, track_request.borrow_mut(), &fs_tree).unwrap();
 
     let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
+    println!("{:?}", request.files);
 
     let cookie_jar = get_jar().unwrap();
     let base_url = get_api_base_url();
@@ -72,11 +73,17 @@ fn wrap(response: IpcMessageResponse) -> Result<IpcMessage, Box<dyn std::fmt::De
 
 fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     let mut message = String::from("By continuing, you will recursively backup the following:\n");
+    let mut first_depth_file_structure: HashSet<String> = HashSet::new();
     for item in fs_tree.get_first_depth() {
-        message += match item {
-            FSTreeItem::File(file) => file.path.as_str(),
-            FSTreeItem::Folder(folder) => folder.path.as_str(),
+        let file_path = item.path.as_str();
+        let formatted_path = match file_path.split_once("/") {
+            None => String::from(file_path),
+            Some((before, _after)) => String::from(before) + "/",
         };
+        first_depth_file_structure.insert(formatted_path);
+    }
+    for file_path in first_depth_file_structure {
+        message += &file_path;
         message += "\n"
     }
     message += "\nDo you wish to continue?";
