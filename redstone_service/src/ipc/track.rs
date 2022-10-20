@@ -2,7 +2,7 @@ use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     api::{get_api_base_url, get_http_client, jar::get_jar},
     model::{
-        api::DeclareBackupRequest,
+        api::{DeclareBackupRequest, DeclareBackupResponse},
         backup::IndexFile,
         fs_tree::{FSTree, FSTreeItem},
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
@@ -46,19 +46,24 @@ pub async fn handle_track_msg(
         });
     }
 
-    // create_files(&index_file_path, track_request.borrow_mut(), &fs_tree).unwrap();
 
     let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
     println!("{:?}", request.files);
 
     let cookie_jar = get_jar().unwrap();
     let base_url = get_api_base_url();
-    get_http_client(cookie_jar)
+    let res: DeclareBackupResponse = get_http_client(cookie_jar)
         .post(base_url.join("/api/upload/declare").unwrap())
         .json(&request)
         .send()
         .await
+        .unwrap()
+        .json()
+        .await
         .unwrap();
+
+    println!("{:?}", res);
+    create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
 
     wrap(IpcMessageResponse {
         keep_connection: false,
@@ -92,15 +97,15 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
 
 fn create_files(
     index_file_path: &PathBuf,
-    track_request: &mut TrackRequest,
-    fs_tree: &FSTree,
-) -> std::io::Result<()> {
+    declare_response: DeclareBackupResponse,
+    track_request: &mut TrackRequest 
+) -> std::io::Result<IndexFile> {
     let parent_folders = index_file_path.parent();
     if let Some(folder_path) = parent_folders {
         std::fs::create_dir_all(folder_path).unwrap();
     }
     let mut index_file = std::fs::File::create(index_file_path).unwrap();
-    let index_file_content =
-        bincode::serialize(&IndexFile::new(track_request.clone(), fs_tree)).unwrap();
-    index_file.write_all(&index_file_content)
+    let index_file_content = IndexFile::new(declare_response, track_request);
+    index_file.write_all(&bincode::serialize(&index_file_content).unwrap())?;
+    Ok(index_file_content)
 }

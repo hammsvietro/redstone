@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-
-use super::{fs_tree::FSTree, track::TrackRequest};
+use super::{track::TrackRequest, api::{DeclareBackupResponse, Backup}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -12,17 +10,17 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IndexFile {
     pub config: BackupConfig,
-    pub last_synced_fstree: FSTree,
+    pub backup: Backup,
 }
 
 impl IndexFile {
-    pub fn new(track_req: TrackRequest, fs_tree: &FSTree) -> Self {
+    pub fn new(declare_response: DeclareBackupResponse, track_request: &TrackRequest) -> Self {
         Self {
-            last_synced_fstree: fs_tree.to_owned(),
+            backup: declare_response.backup,
             config: BackupConfig {
-                sync_every: track_req.sync_every,
-                watch: track_req.watch,
-                base_path: track_req.base_path,
+                sync_every: track_request.sync_every.clone(),
+                watch: track_request.watch,
+                entrypoint: String::from(track_request.base_path.to_str().unwrap()),
             },
         }
     }
@@ -32,5 +30,5 @@ impl IndexFile {
 pub struct BackupConfig {
     pub sync_every: Option<String>,
     pub watch: bool,
-    pub base_path: PathBuf,
+    pub entrypoint: String
 }
