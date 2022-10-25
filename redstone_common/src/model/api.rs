@@ -18,7 +18,8 @@ impl DeclareBackupRequest {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct DeclareBackupResponse {
-    pub backup: Backup
+    pub backup: Backup,
+    pub update_token: String
 }
 
 /* SERVER ENTITIES */
@@ -36,4 +37,10 @@ pub struct File {
     pub id: String,
     pub path: String,
     pub sha1_checksum: String
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ServerToken {
+    pub id: String,
+    pub token: String
 }

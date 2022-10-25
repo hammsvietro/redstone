@@ -49,7 +49,6 @@ pub async fn handle_track_msg(
 
 
     let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
-    println!("{:?}", request.files);
 
     let cookie_jar = get_jar().unwrap();
     let base_url = get_api_base_url();
