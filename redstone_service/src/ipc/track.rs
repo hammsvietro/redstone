@@ -4,11 +4,12 @@ use redstone_common::{
     model::{
         api::{DeclareBackupRequest, DeclareBackupResponse},
         backup::IndexFile,
-        fs_tree::{FSTree, FSTreeItem},
+        fs_tree::FSTree,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
         track::{TrackMessageResponse, TrackRequest},
     },
 };
+use tokio::{net::TcpStream, io::{AsyncWriteExt,AsyncBufReadExt, BufReader}};
 use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
 
 use super::socket_loop::prompt_action_confirmation;
@@ -52,7 +53,7 @@ pub async fn handle_track_msg(
 
     let cookie_jar = get_jar().unwrap();
     let base_url = get_api_base_url();
-    let res: DeclareBackupResponse = get_http_client(cookie_jar)
+    let declare_response: DeclareBackupResponse = get_http_client(cookie_jar)
         .post(base_url.join("/api/upload/declare").unwrap())
         .json(&request)
         .send()
@@ -62,9 +63,10 @@ pub async fn handle_track_msg(
         .await
         .unwrap();
 
-    println!("{:?}", res);
-    create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
+    println!("{:?}", declare_response);
+    // create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
 
+    send_files(declare_response).await.unwrap();
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
@@ -93,6 +95,16 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     }
     message += "\nDo you wish to continue?";
     message
+}
+
+async fn send_files(declare_res: DeclareBackupResponse) -> std::io::Result<()> {
+    let stream = TcpStream::connect("127.0.0.1:8000").await?;
+    let mut stream = BufReader::new(stream);
+    stream.write_all(b"ping\n").await?;
+    let mut buf = String::new();
+    stream.read_line(&mut buf).await?;
+    println!("{:?}", buf);
+    Ok(())
 }
 
 fn create_files(
