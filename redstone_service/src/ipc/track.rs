@@ -10,7 +10,7 @@ use redstone_common::{
     },
 };
 use tokio::{net::TcpStream, io::{AsyncWriteExt,AsyncBufReadExt, BufReader}};
-use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
+use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf, mem::transmute};
 
 use super::socket_loop::prompt_action_confirmation;
 
@@ -99,10 +99,16 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
 async fn send_files(declare_res: DeclareBackupResponse) -> std::io::Result<()> {
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
-    stream.write_all(b"ping\n").await?;
+    let message = "ping";
+    let message_size_bytes: [u8; 4] = (message.as_bytes().len() as u32).to_be_bytes();
+    let message = [&message_size_bytes, message.as_bytes()].concat();
+    stream.write_all(&message).await?;
     let mut buf = String::new();
     stream.read_line(&mut buf).await?;
-    println!("{:?}", buf);
+    for _ in 0..4 {
+        buf.remove(0);
+    }
+    println!("{}", buf);
     Ok(())
 }
 

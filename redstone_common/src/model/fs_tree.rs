@@ -1,16 +1,10 @@
 use ignore::{Error, WalkBuilder};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Borrow, fmt::Debug, path::PathBuf};
+use std::{fmt::Debug, path::PathBuf};
 
 use crate::util::generate_sha256_digest;
 
 type Sha256Digest = String;
-
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub enum FSTreeItem {
-    Folder(RSFolder),
-    File(RSFile),
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct RSFile {
@@ -128,6 +122,20 @@ fn read_dir(
     }
     return Ok(file_tree_items);
 }
+fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
+    let suffix = match root.ends_with("/") {
+        true => String::from(root),
+        false => String::from(root) + "/",
+    };
+    String::from(remove_prefix(path.to_str().unwrap(), &suffix))
+}
+
+fn remove_prefix<'a>(s: &'a str, suffix: &str) -> &'a str {
+    match s.strip_prefix(suffix) {
+        Some(s) => s,
+        None => s,
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -165,17 +173,3 @@ mod tests {
     }
 }
 
-fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
-    let suffix = match root.ends_with("/") {
-        true => String::from(root),
-        false => String::from(root) + "/",
-    };
-    String::from(remove_prefix(path.to_str().unwrap(), &suffix))
-}
-
-fn remove_prefix<'a>(s: &'a str, suffix: &str) -> &'a str {
-    match s.strip_prefix(suffix) {
-        Some(s) => s,
-        None => s,
-    }
-}
