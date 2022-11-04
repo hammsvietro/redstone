@@ -1,3 +1,4 @@
+mod backup;
 mod ipc;
 mod scheduler;
 mod service;

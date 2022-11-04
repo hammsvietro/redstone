@@ -66,8 +66,12 @@ impl FSTree {
 
     pub fn get_first_depth(&self) -> Vec<&RSFile> {
         let mut items: Vec<&RSFile> = self.files.iter().filter(|item| item.depth <= 1).collect();
-        items.sort_by(|a, b| a.depth.partial_cmp(&(*b).depth).unwrap());
+        items.sort_by(|a, b| b.depth.partial_cmp(&a.depth).unwrap());
         items
+    }
+
+    pub fn total_size(&self) -> u64 {
+        self.files.iter().map(|file| std::fs::metadata(&file.path).unwrap().len()).sum()
     }
 }
 

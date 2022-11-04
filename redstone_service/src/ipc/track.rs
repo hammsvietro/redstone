@@ -9,8 +9,10 @@ use redstone_common::{
         track::{TrackMessageResponse, TrackRequest},
     },
 };
-use tokio::{net::TcpStream, io::{AsyncWriteExt,AsyncBufReadExt, BufReader}};
+use tokio::{net::TcpStream, io::{AsyncWriteExt,AsyncBufReadExt, BufReader}, sync::mpsc::{self, UnboundedReceiver}};
 use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf, mem::transmute};
+
+use crate::backup::file_transfer::send_files;
 
 use super::socket_loop::prompt_action_confirmation;
 
@@ -48,6 +50,7 @@ pub async fn handle_track_msg(
     }
 
 
+    let total_size = fs_tree.total_size();
     let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
 
     let cookie_jar = get_jar().unwrap();
@@ -64,8 +67,11 @@ pub async fn handle_track_msg(
 
     println!("{:?}", declare_response);
     // create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
-
-    send_files(declare_response).await.unwrap();
+    let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
+    let (_, _) = tokio::join!(
+        send_files(declare_response.backup.files, declare_response.update_token, tx),
+        send_progress(&mut rx, total_size)
+    );
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
@@ -75,6 +81,13 @@ pub async fn handle_track_msg(
 
 fn wrap(response: IpcMessageResponse) -> Result<IpcMessage, Box<dyn std::fmt::Debug + Send>> {
     Ok(response.into())
+}
+
+async fn send_progress(progress_receiver: &mut UnboundedReceiver<u64>, total_size: u64) {
+    while let Some(sent) = progress_receiver.recv().await {
+        println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
+        // send to cli
+    }
 }
 
 fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
@@ -94,22 +107,6 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     }
     message += "\nDo you wish to continue?";
     message
-}
-
-async fn send_files(declare_res: DeclareBackupResponse) -> std::io::Result<()> {
-    let stream = TcpStream::connect("127.0.0.1:8000").await?;
-    let mut stream = BufReader::new(stream);
-    let message = "ping";
-    let message_size_bytes: [u8; 4] = (message.as_bytes().len() as u32).to_be_bytes();
-    let message = [&message_size_bytes, message.as_bytes()].concat();
-    stream.write_all(&message).await?;
-    let mut buf = String::new();
-    stream.read_line(&mut buf).await?;
-    for _ in 0..4 {
-        buf.remove(0);
-    }
-    println!("{}", buf);
-    Ok(())
 }
 
 fn create_files(
