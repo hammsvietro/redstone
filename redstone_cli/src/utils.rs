@@ -1,12 +1,11 @@
 use std::io::Write;
 
-use redstone_common::model::ipc::{
-    ConfirmationRequest, ConfirmationResponse, IpcMessageResponse, IpcMessageResponseType,
+use redstone_common::model::{
+    ipc::{ConfirmationRequest, ConfirmationResponse, IpcMessageResponse, IpcMessageResponseType},
+    Result,
 };
 
-pub fn handle_confirmation_request(
-    request: &ConfirmationRequest,
-) -> std::io::Result<IpcMessageResponse> {
+pub fn handle_confirmation_request(request: &ConfirmationRequest) -> Result<IpcMessageResponse> {
     print!("{} [Y/n] ", request.message);
     std::io::stdout().flush()?;
     let mut buffer = String::new();

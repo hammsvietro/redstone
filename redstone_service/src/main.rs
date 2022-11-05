@@ -3,10 +3,8 @@ mod ipc;
 mod scheduler;
 mod service;
 
-use std::io::Result;
-
 use ipc::assert_socket_is_available;
-use redstone_common::config::assert_app_data_folder_is_created;
+use redstone_common::{config::assert_app_data_folder_is_created, model::Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {

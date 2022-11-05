@@ -1,4 +1,7 @@
-use super::{track::TrackRequest, api::{DeclareBackupResponse, Backup}};
+use super::{
+    api::{Backup, DeclareBackupResponse},
+    track::TrackRequest,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,5 +33,5 @@ impl IndexFile {
 pub struct BackupConfig {
     pub sync_every: Option<String>,
     pub watch: bool,
-    pub entrypoint: String
+    pub entrypoint: String,
 }

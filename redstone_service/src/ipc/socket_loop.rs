@@ -6,24 +6,22 @@ use std::{
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use redstone_common::{
     constants::{IPC_BUFFER_SIZE, IPC_SOCKET_PATH},
-    model::ipc::{
-        ConfirmationRequest, ConfirmationResponse, IpcMessage, IpcMessageRequest,
-        IpcMessageRequestType, IpcMessageResponse,
+    model::{
+        ipc::{
+            ConfirmationRequest, ConfirmationResponse, IpcMessage, IpcMessageRequest,
+            IpcMessageRequestType, IpcMessageResponse,
+        },
+        Result,
     },
 };
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{ipc::track::handle_track_msg, scheduler::UpdateJob};
 
-pub async fn run_socket_loop(
-    new_job_sender: UnboundedSender<UpdateJob>,
-) -> Result<(), std::boxed::Box<dyn std::fmt::Debug>> {
-    let listener = LocalSocketListener::bind(IPC_SOCKET_PATH);
-    if let Err(error) = listener {
-        return Err(std::boxed::Box::new(error));
-    }
+pub async fn run_socket_loop(new_job_sender: UnboundedSender<UpdateJob>) -> Result<()> {
+    let listener = LocalSocketListener::bind(IPC_SOCKET_PATH)?;
     println!("Listening on {IPC_SOCKET_PATH}");
-    for mut conn in listener.unwrap().incoming().filter_map(handle_error) {
+    for mut conn in listener.incoming().filter_map(handle_error) {
         let new_job_sender = new_job_sender.clone();
         tokio::spawn(async move { handle_connection(conn.borrow_mut(), new_job_sender).await });
     }
@@ -33,7 +31,7 @@ pub async fn run_socket_loop(
 async fn handle_connection(
     connection: &mut LocalSocketStream,
     _new_job_sender: UnboundedSender<UpdateJob>,
-) -> Result<(), Box<dyn std::fmt::Debug + Send>> {
+) -> Result<()> {
     loop {
         let ipc_message = match read_message_until_complete_or_timeout(
             connection.borrow_mut(),
@@ -51,14 +49,14 @@ async fn handle_connection(
                         keep_connection: false,
                     }),
                 );
-                return Err(Box::new(err));
+                return Err(err);
             }
         };
         let message = IpcMessageRequest::from(ipc_message);
         let result_msg: IpcMessage =
             handle_message(connection.borrow_mut(), message.message).await?;
         if let Err(err) = send_message(connection.borrow_mut(), result_msg.borrow()) {
-            println!("Error when writing to socket: {:?}", err.kind());
+            eprintln!("{}", err);
             break;
         }
         if let IpcMessage::Response(res) = result_msg {
@@ -76,20 +74,23 @@ async fn handle_connection(
     Ok(())
 }
 
-fn try_reading(connection: &mut LocalSocketStream, buffer: &mut [u8]) -> io::Result<usize> {
+fn try_reading(
+    connection: &mut LocalSocketStream,
+    buffer: &mut [u8],
+) -> redstone_common::model::Result<usize> {
     let mut buff_reader = BufReader::new(connection.borrow_mut());
-    buff_reader.read(buffer.borrow_mut())
+    Ok(buff_reader.read(buffer.borrow_mut())?)
 }
 
-fn send_message(connection: &mut LocalSocketStream, message: &IpcMessage) -> io::Result<()> {
+fn send_message(connection: &mut LocalSocketStream, message: &IpcMessage) -> Result<()> {
     let message: &[u8] = &bincode::serialize(message.borrow()).unwrap();
-    connection.write_all(message)
+    Ok(connection.write_all(message)?)
 }
 
 async fn handle_message(
     connection: &mut LocalSocketStream,
     message: IpcMessageRequestType,
-) -> Result<IpcMessage, Box<dyn std::fmt::Debug + Send>> {
+) -> Result<IpcMessage> {
     match message {
         IpcMessageRequestType::TrackRequest(mut track_request) => {
             handle_track_msg(connection.borrow_mut(), &mut track_request).await
@@ -108,18 +109,13 @@ fn continue_reading_message(error: &Box<bincode::ErrorKind>) -> bool {
 async fn read_message_until_complete_or_timeout(
     connection: &mut LocalSocketStream,
     timeout: std::time::Duration,
-) -> Result<IpcMessage, String> {
+) -> Result<IpcMessage> {
     let mut buffer = [0; IPC_BUFFER_SIZE];
     let mut request_buffer: Vec<u8> = Vec::new();
     let mut last_received_data_time = std::time::SystemTime::now();
     let mut size: usize;
     loop {
-        size = match try_reading(connection.borrow_mut(), buffer.borrow_mut()) {
-            Ok(read_size) => read_size,
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        };
+        size = try_reading(connection.borrow_mut(), buffer.borrow_mut())?;
         if size > 0 {
             request_buffer.extend_from_slice(&buffer[0..size]);
             if size == IPC_BUFFER_SIZE {
@@ -132,7 +128,9 @@ async fn read_message_until_complete_or_timeout(
                     if continue_reading_message(err.borrow()) || size == IPC_BUFFER_SIZE {
                         continue;
                     }
-                    return Err(err.to_string());
+                    return Err(redstone_common::model::RedstoneError::SerdeError(
+                        err.to_string(),
+                    ));
                 }
             };
         } else {
@@ -140,14 +138,16 @@ async fn read_message_until_complete_or_timeout(
                 .duration_since(last_received_data_time)
                 .unwrap();
             if duration > timeout {
-                return Err(String::from("Timeout"));
+                return Err(redstone_common::model::RedstoneError::ConnectionTimeout);
             }
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         }
     }
 }
 
-fn handle_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {
+fn handle_error(
+    conn: std::result::Result<LocalSocketStream, std::io::Error>,
+) -> Option<LocalSocketStream> {
     match conn {
         Ok(val) => Some(val),
         Err(error) => {
@@ -160,7 +160,7 @@ fn handle_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream
 pub async fn prompt_action_confirmation(
     socket: &mut LocalSocketStream,
     confirmation_request: ConfirmationRequest,
-) -> Result<ConfirmationResponse, String> {
+) -> Result<ConfirmationResponse> {
     send_message(socket.borrow_mut(), &IpcMessage::from(confirmation_request)).unwrap();
     let ipc_message = read_message_until_complete_or_timeout(
         socket.borrow_mut(),

@@ -1,10 +1,12 @@
+use crate::model::Result;
+
 use super::super::config::get_auth_data;
 use super::get_api_base_url;
 use reqwest::cookie::Jar;
 /// Cookie Jar methods
 use std::sync::Arc;
 
-pub fn get_jar() -> std::io::Result<Arc<Jar>> {
+pub fn get_jar() -> Result<Arc<Jar>> {
     let jar = Jar::default();
     let auth_data = get_auth_data()?;
     match auth_data {

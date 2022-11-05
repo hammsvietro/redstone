@@ -1,7 +1,8 @@
-use crate::model::config::AuthData;
-use std::{io::ErrorKind, path::PathBuf};
+use super::model::Result;
+use crate::model::{config::AuthData, RedstoneError};
+use std::path::PathBuf;
 
-pub fn assert_app_data_folder_is_created() -> std::io::Result<()> {
+pub fn assert_app_data_folder_is_created() -> Result<()> {
     let mut dir = dirs::home_dir().unwrap();
     dir.push(".redstone");
     if !dir.exists() {
@@ -24,43 +25,27 @@ pub fn assert_app_data_folder_is_created() -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn get_home_dir() -> std::io::Result<PathBuf> {
-    match dirs::home_dir() {
-        None => Err(std::io::Error::new(
-            ErrorKind::NotFound,
-            "Couldn't open home dir.",
-        )),
-        Some(pathbuf) => Ok(pathbuf),
-    }
+pub fn get_home_dir() -> Result<PathBuf> {
+    dirs::home_dir().ok_or(RedstoneError::NoHomeDir)
 }
 
-pub fn get_auth_dir() -> std::io::Result<PathBuf> {
-    match get_home_dir() {
-        Ok(mut dir) => {
-            dir.push(".redstone");
-            dir.push("auth");
-            return Ok(dir);
-        }
-        Err(err) => Err(err),
-    }
+pub fn get_auth_dir() -> Result<PathBuf> {
+    let mut home_dir = get_home_dir()?;
+    home_dir.push(".redstone");
+    home_dir.push("auth");
+    Ok(home_dir)
 }
 
-pub fn get_auth_data() -> std::io::Result<Option<AuthData>> {
+pub fn get_auth_data() -> Result<Option<AuthData>> {
     let auth_dir = get_auth_dir()?;
     let content = std::fs::read_to_string(auth_dir)?;
     if content.len() == 0 {
         return Ok(None);
     }
-    match bincode::deserialize(&content.as_bytes()) {
-        Err(err) => {
-            let error = std::io::Error::new(ErrorKind::Other, err.to_string());
-            return Err(error);
-        }
-        Ok(auth_data) => Ok(auth_data),
-    }
+    Ok(bincode::deserialize(&content.as_bytes())?)
 }
 
-pub fn set_auth_data(auth_data: AuthData) -> std::io::Result<()> {
+pub fn set_auth_data(auth_data: AuthData) -> Result<()> {
     let auth_dir = get_auth_dir()?;
     let data = &bincode::serialize(&Some(auth_data)).unwrap();
     std::fs::write(auth_dir, &data).unwrap();

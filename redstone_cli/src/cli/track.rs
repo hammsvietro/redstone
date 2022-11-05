@@ -3,6 +3,7 @@ use std::{env::current_dir, path::PathBuf, str::FromStr};
 use redstone_common::model::{
     ipc::{ConfirmationRequest, IpcMessage, IpcMessageRequest, IpcMessageRequestType},
     track::TrackRequest,
+    Result,
 };
 
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
 
 use super::models::TrackArgs;
 
-pub fn run_track_cmd(track_args: TrackArgs) -> std::io::Result<()> {
+pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
     let path_buf = get_target_path(track_args.path);
     let track_request = TrackRequest {
         base_path: path_buf,

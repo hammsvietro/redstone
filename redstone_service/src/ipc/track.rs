@@ -7,10 +7,14 @@ use redstone_common::{
         fs_tree::FSTree,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
         track::{TrackMessageResponse, TrackRequest},
+        Result,
     },
 };
-use tokio::{net::TcpStream, io::{AsyncWriteExt,AsyncBufReadExt, BufReader}, sync::mpsc::{self, UnboundedReceiver}};
-use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf, mem::transmute};
+use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
+use tokio::{
+    io::AsyncWriteExt,
+    sync::mpsc::{self, UnboundedReceiver},
+};
 
 use crate::backup::file_transfer::send_files;
 
@@ -19,7 +23,7 @@ use super::socket_loop::prompt_action_confirmation;
 pub async fn handle_track_msg(
     connection: &mut LocalSocketStream,
     track_request: &mut TrackRequest,
-) -> Result<IpcMessage, Box<dyn std::fmt::Debug + Send>> {
+) -> Result<IpcMessage> {
     let message = TrackMessageResponse {
         data: String::from("=)"),
     };
@@ -39,7 +43,7 @@ pub async fn handle_track_msg(
     let confirmation_result =
         match prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await {
             Ok(confirmation_response) => confirmation_response,
-            Err(err) => return Err(Box::new(err)),
+            Err(err) => return Err(err),
         };
     if !confirmation_result.has_accepted {
         return wrap(IpcMessageResponse {
@@ -48,7 +52,6 @@ pub async fn handle_track_msg(
             message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
         });
     }
-
 
     let total_size = fs_tree.total_size();
     let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
@@ -69,7 +72,11 @@ pub async fn handle_track_msg(
     // create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
     let (_, _) = tokio::join!(
-        send_files(declare_response.backup.files, declare_response.update_token, tx),
+        send_files(
+            declare_response.backup.files,
+            declare_response.update_token,
+            tx
+        ),
         send_progress(&mut rx, total_size)
     );
     wrap(IpcMessageResponse {
@@ -79,7 +86,7 @@ pub async fn handle_track_msg(
     })
 }
 
-fn wrap(response: IpcMessageResponse) -> Result<IpcMessage, Box<dyn std::fmt::Debug + Send>> {
+fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
     Ok(response.into())
 }
 
@@ -112,8 +119,8 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
 fn create_files(
     index_file_path: &PathBuf,
     declare_response: DeclareBackupResponse,
-    track_request: &mut TrackRequest 
-) -> std::io::Result<IndexFile> {
+    track_request: &mut TrackRequest,
+) -> Result<IndexFile> {
     let parent_folders = index_file_path.parent();
     if let Some(folder_path) = parent_folders {
         std::fs::create_dir_all(folder_path).unwrap();

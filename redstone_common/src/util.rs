@@ -3,9 +3,9 @@ use std::{io::Read, path::PathBuf};
 use data_encoding::HEXLOWER;
 use sha2::{Digest, Sha256};
 
-use crate::constants::BLOCK_SIZE;
+use crate::{constants::BLOCK_SIZE, model::Result};
 
-pub fn generate_sha256_digest(path: &PathBuf) -> std::io::Result<String> {
+pub fn generate_sha256_digest(path: &PathBuf) -> Result<String> {
     let input = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(input);
 
@@ -24,7 +24,7 @@ pub fn generate_sha256_digest(path: &PathBuf) -> std::io::Result<String> {
     Ok(HEXLOWER.encode(digest.as_ref()))
 }
 
-pub fn generate_sha256_digest_chunks(path: &PathBuf) -> std::io::Result<Vec<String>> {
+pub fn generate_sha256_digest_chunks(path: &PathBuf) -> Result<Vec<String>> {
     let input = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(input);
     let mut chunks: Vec<String> = Vec::new();

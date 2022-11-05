@@ -71,7 +71,7 @@ impl FSTree {
     }
 
     pub fn total_size(&self) -> u64 {
-        self.files.iter().map(|file| std::fs::metadata(&file.path).unwrap().len()).sum()
+        self.files.iter().map(|file| file.size).sum()
     }
 }
 
@@ -176,4 +176,3 @@ mod tests {
         assert_eq!(target_fs_tree.files.sort(), fs_tree.files.sort());
     }
 }
-

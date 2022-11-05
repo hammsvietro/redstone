@@ -3,11 +3,11 @@ use std::io::Write;
 use redstone_common::{
     api::{get_api_base_url, jar::get_jar, AuthRequest},
     config::set_auth_data,
-    model::config::AuthData,
+    model::{config::AuthData, Result},
 };
 use reqwest::cookie::CookieStore;
 
-pub fn run_auth_cmd() -> std::io::Result<()> {
+pub fn run_auth_cmd() -> Result<()> {
     let auth_request = prompt_credentials()?;
     let base_url = get_api_base_url();
     let cookie_jar = get_jar()?;
@@ -44,7 +44,7 @@ pub fn run_auth_cmd() -> std::io::Result<()> {
     Ok(())
 }
 
-fn prompt_credentials() -> std::io::Result<AuthRequest> {
+fn prompt_credentials() -> Result<AuthRequest> {
     print!("E-mail: ");
     std::io::stdout().flush()?;
     let mut buffer = String::new();

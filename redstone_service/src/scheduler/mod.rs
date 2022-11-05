@@ -1,12 +1,11 @@
 use chrono::Utc;
 use cron::Schedule;
+use redstone_common::model::{RedstoneError, Result};
 use std::{borrow::BorrowMut, str::FromStr};
 
 use tokio::{sync::mpsc::UnboundedReceiver, task::JoinHandle};
 
-pub async fn run_upload_jobs(
-    new_job_receiver: &mut UnboundedReceiver<UpdateJob>,
-) -> Result<(), std::boxed::Box<dyn std::fmt::Debug>> {
+pub async fn run_upload_jobs(new_job_receiver: &mut UnboundedReceiver<UpdateJob>) -> Result<()> {
     let _ = tokio::join!(
         run_stored_jobs(get_jobs()),
         listen_for_new_jobs(new_job_receiver.borrow_mut())
@@ -33,7 +32,7 @@ fn get_jobs() -> Vec<UpdateJob> {
     ]
 }
 
-async fn run_stored_jobs(jobs: Vec<UpdateJob>) -> Vec<JoinHandle<Result<(), cron::error::Error>>> {
+async fn run_stored_jobs(jobs: Vec<UpdateJob>) -> Vec<JoinHandle<Result<()>>> {
     let mut job_vec = Vec::new();
     for job in jobs {
         let handle = run_job(job);
@@ -42,9 +41,10 @@ async fn run_stored_jobs(jobs: Vec<UpdateJob>) -> Vec<JoinHandle<Result<(), cron
     job_vec
 }
 
-fn run_job(job: UpdateJob) -> JoinHandle<Result<(), cron::error::Error>> {
+fn run_job(job: UpdateJob) -> JoinHandle<Result<()>> {
     tokio::task::spawn(async move {
-        let schedule = Schedule::from_str(job.cron_expr.as_str())?;
+        let schedule = Schedule::from_str(job.cron_expr.as_str())
+            .or_else(|_| Err(RedstoneError::CronParseError(job.cron_expr)))?;
         for date_time in schedule.after(&Utc::now()) {
             sleep_until_exec_time(date_time).await;
         }
@@ -52,9 +52,7 @@ fn run_job(job: UpdateJob) -> JoinHandle<Result<(), cron::error::Error>> {
     })
 }
 
-async fn listen_for_new_jobs(
-    new_job_receiver: &mut UnboundedReceiver<UpdateJob>,
-) -> Result<(), cron::error::Error> {
+async fn listen_for_new_jobs(new_job_receiver: &mut UnboundedReceiver<UpdateJob>) -> Result<()> {
     while let Some(job) = new_job_receiver.recv().await {
         // TODO: store_job(job);
         run_job(job);
