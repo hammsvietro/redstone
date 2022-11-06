@@ -54,6 +54,7 @@ pub async fn handle_track_msg(
     }
 
     let total_size = fs_tree.total_size();
+    let root_folder = fs_tree.root.clone();
     let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
 
     let cookie_jar = get_jar().unwrap();
@@ -68,13 +69,13 @@ pub async fn handle_track_msg(
         .await
         .unwrap();
 
-    println!("{:?}", declare_response);
     // create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
     let (_, _) = tokio::join!(
         send_files(
             declare_response.backup.files,
             declare_response.update_token,
+            root_folder,
             tx
         ),
         send_progress(&mut rx, total_size)

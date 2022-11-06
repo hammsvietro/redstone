@@ -6,6 +6,7 @@ pub mod config;
 pub mod fs_tree;
 pub mod ipc;
 pub mod track;
+pub mod tcp;
 
 #[derive(Debug)]
 pub enum RedstoneError {
@@ -27,6 +28,12 @@ impl From<std::io::Error> for RedstoneError {
 impl From<Box<bincode::ErrorKind>> for RedstoneError {
     fn from(error_kind: Box<bincode::ErrorKind>) -> Self {
         RedstoneError::SerdeError(error_kind.to_string())
+    }
+}
+
+impl From<serde_json::Error> for RedstoneError {
+    fn from(error: serde_json::Error) -> Self {
+        RedstoneError::SerdeError(error.to_string())
     }
 }
 

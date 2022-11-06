@@ -6,5 +6,4 @@ pub const IPC_BUFFER_SIZE: usize = 16384;
 #[cfg(target_os = "macos")]
 pub const IPC_BUFFER_SIZE: usize = 8192;
 
-// 2^14 -> BitTorrent block size
-pub const BLOCK_SIZE: usize = 16384;
+pub const TCP_FILE_CHUNK_SIZE: usize = 1_048_576; // 1MB
