@@ -31,8 +31,8 @@ impl From<Box<bincode::ErrorKind>> for RedstoneError {
     }
 }
 
-impl From<serde_json::Error> for RedstoneError {
-    fn from(error: serde_json::Error) -> Self {
+impl From<bson::ser::Error> for RedstoneError {
+    fn from(error: bson::ser::Error) -> Self {
         RedstoneError::SerdeError(error.to_string())
     }
 }

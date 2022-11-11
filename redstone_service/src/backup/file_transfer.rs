@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use redstone_common::model::{api::File, Result, tcp::{FileUploadMessage, TcpMessage}, RedstoneError};
+use redstone_common::model::{api::File, Result, tcp::{TcpMessage, FileUploadMessageFactory}, RedstoneError};
 
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufReader},
@@ -18,7 +18,7 @@ pub async fn send_files(
     let mut stream = BufReader::new(stream);
     for file in files {
         println!("Uploading {} file", file.path);
-        let mut file_upload_message = FileUploadMessage::new(upload_token.clone(), file, root_folder.clone());
+        let mut file_upload_message = FileUploadMessageFactory::new(upload_token.clone(), file, root_folder.clone());
         while file_upload_message.has_data_to_fetch() {
             let packet = file_upload_message.get_tcp_payload()?;
             send_message(&mut stream, &packet).await?;

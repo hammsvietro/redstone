@@ -2,36 +2,31 @@
 
 use std::{path::PathBuf, fs::File, io::{Seek, SeekFrom, Read}};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use crate::constants::TCP_FILE_CHUNK_SIZE;
-
 use super::Result;
 
-#[derive(Deserialize, Serialize)]
-pub struct AbortUpdate {
+pub struct AbortUpdateMessageFactory {
     upload_token: String,
-
 }
 
-impl AbortUpdate {
+impl AbortUpdateMessageFactory {
     pub fn new(upload_token: String) -> Self {
         Self { upload_token }
     }
 }
 
-impl TcpMessage for AbortUpdate {
-    const OPERATION: &'static str = "ABORT";
+impl TcpMessage for AbortUpdateMessageFactory {
+    const OPERATION: TcpOperation = TcpOperation::Abort;
     fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
-        let payload = json!({
-            "upload_token": self.upload_token,
-            "operation": Self::OPERATION
-        });
-        Ok(serde_json::to_vec(&payload)?)
+        let message = AbortMessage {
+            upload_token: self.upload_token.to_string(),
+            operation: Self::OPERATION
+        };
+        Ok(bson::to_vec(&message)?)
     } 
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct FileUploadMessage {
+pub struct FileUploadMessageFactory {
     upload_token: String,
     file_id: String,
     file_path: PathBuf,
@@ -40,7 +35,7 @@ pub struct FileUploadMessage {
     read_bytes: usize
 }
 
-impl FileUploadMessage {
+impl FileUploadMessageFactory {
     pub fn new(upload_token: String, file: super::api::File, root_folder: PathBuf) -> Self {
         let file_path = root_folder.join(file.path);
         let file_size = std::fs::metadata(&file_path).unwrap().len();
@@ -74,24 +69,49 @@ impl FileUploadMessage {
     }
 }
 
-impl TcpMessage for FileUploadMessage {
-    const OPERATION: &'static str = "UPLOAD_CHUNK";
+impl TcpMessage for FileUploadMessageFactory {
+    const OPERATION: TcpOperation = TcpOperation::UploadChunk;
 
     fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
         let data = self.get_next_chunk()?;
-        let payload = json!({
-            "upload_token": self.upload_token,
-            "operation": Self::OPERATION,
-            "file_id": self.file_id,
-            "file_size": self.file_size,
-            "data": data,
-            "last_chunk": !self.has_data_to_fetch()
-        });
-        Ok(serde_json::to_vec(&payload)?)
+        let message = FileUploadMessage {
+            upload_token: self.upload_token.to_string(),
+            operation: TcpOperation::UploadChunk,
+            file_id: self.file_id.to_string(),
+            file_size: self.file_size,
+            data,
+            last_chunk: !self.has_data_to_fetch()
+        };
+        let encoded = bson::to_vec(&message)?;
+        Ok(encoded)
     } 
 }
 
 pub trait TcpMessage {
-    const OPERATION: &'static str;
+    const OPERATION: TcpOperation;
     fn get_tcp_payload(&mut self) -> Result<Vec<u8>>;
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum TcpOperation {
+    Abort,
+    UploadChunk
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct AbortMessage {
+    pub upload_token: String,
+    pub operation: TcpOperation
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct FileUploadMessage {
+    pub upload_token: String,
+    pub operation: TcpOperation,
+    pub file_id: String,
+    pub file_size: usize,
+    #[serde(with = "serde_bytes")]
+    pub data: Vec<u8>,
+    pub last_chunk: bool
+}
+
