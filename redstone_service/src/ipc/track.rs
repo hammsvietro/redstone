@@ -55,7 +55,7 @@ pub async fn handle_track_msg(
 
     let total_size = fs_tree.total_size();
     let root_folder = fs_tree.root.clone();
-    let request = DeclareBackupRequest::new(String::from("test"), fs_tree.root, fs_tree.files);
+    let request = DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root, fs_tree.files);
 
     let cookie_jar = get_jar().unwrap();
     let base_url = get_api_base_url();
@@ -63,11 +63,9 @@ pub async fn handle_track_msg(
         .post(base_url.join("/api/upload/declare").unwrap())
         .json(&request)
         .send()
-        .await
-        .unwrap()
+        .await?
         .json()
-        .await
-        .unwrap();
+        .await?;
 
     // create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();

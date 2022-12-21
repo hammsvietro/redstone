@@ -4,14 +4,14 @@ use std::path::PathBuf;
 use super::fs_tree::RSFile;
 
 #[derive(Deserialize, Serialize)]
-pub struct DeclareBackupRequest {
+pub struct DeclareBackupRequest<'a> {
     pub files: Vec<RSFile>,
     pub root: PathBuf,
-    pub name: String,
+    pub name: &'a str,
 }
 
-impl DeclareBackupRequest {
-    pub fn new(name: String, root: PathBuf, files: Vec<RSFile>) -> Self {
+impl<'a> DeclareBackupRequest<'a> {
+    pub fn new(name: &'a str, root: PathBuf, files: Vec<RSFile>) -> Self {
         Self { name, root, files }
     }
 }

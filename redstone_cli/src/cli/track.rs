@@ -17,6 +17,7 @@ pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
     let path_buf = get_target_path(track_args.path);
     let track_request = TrackRequest {
         base_path: path_buf,
+        name: track_args.name,
         detatched: track_args.detached,
         sync_every: track_args.sync_every,
         watch: track_args.watch,

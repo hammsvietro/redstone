@@ -16,8 +16,9 @@ pub enum Commands {
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true)]
 pub struct TrackArgs {
-    pub path: Option<String>,
+    pub name: String,
 
+    pub path: Option<String>,
     // #[clap(long, name="replication-count")]
     // pub replication_count: Option<u16>,
     #[clap(long, name = "sync-every")]

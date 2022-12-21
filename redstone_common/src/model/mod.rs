@@ -16,6 +16,7 @@ pub enum RedstoneError {
     FolderOrFileNotFound(String),
     NoHomeDir,
     SerdeError(String),
+    HttpError(String),
     Unauthorized,
 }
 
@@ -37,6 +38,12 @@ impl From<bson::ser::Error> for RedstoneError {
     }
 }
 
+impl From<reqwest::Error> for RedstoneError {
+    fn from(error: reqwest::Error) -> Self {
+        RedstoneError::HttpError(error.to_string())
+    }
+}
+
 impl Display for RedstoneError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error: String = match self {
@@ -47,6 +54,9 @@ impl Display for RedstoneError {
             Self::NoHomeDir => String::from("Couldn't find your home directory."),
             Self::Unauthorized => {
                 String::from("Unauthorized, check if you're logged in correctly.")
+            }
+            Self::HttpError(error) => {
+                format!("An error happened while doing an http request:\n{error}")
             }
             Self::SerdeError(error) => {
                 format!("An error occoured while serializing or serializing data:\n{error}")
