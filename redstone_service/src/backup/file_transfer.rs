@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
-use redstone_common::model::{api::File, Result, tcp::{TcpMessage, FileUploadMessageFactory}, RedstoneError};
+use redstone_common::model::{
+    api::File,
+    tcp::{FileUploadMessageFactory, TcpMessage},
+    RedstoneError, Result,
+};
 
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufReader},
@@ -18,7 +22,8 @@ pub async fn send_files(
     let mut stream = BufReader::new(stream);
     for file in files {
         println!("Uploading {} file", file.path);
-        let mut file_upload_message = FileUploadMessageFactory::new(upload_token.clone(), file, root_folder.clone());
+        let mut file_upload_message =
+            FileUploadMessageFactory::new(upload_token.clone(), file, root_folder.clone());
         while file_upload_message.has_data_to_fetch() {
             let packet = file_upload_message.get_tcp_payload()?;
             send_message(&mut stream, &packet).await?;
@@ -39,9 +44,7 @@ fn get_message_size_in_bytes(message: &[u8]) -> [u8; 4] {
 
 async fn send_message(stream: &mut BufReader<TcpStream>, packet: &[u8]) -> Result<()> {
     let packet_size = get_message_size_in_bytes(packet);
-    Ok(stream
-        .write_all(&[&packet_size, packet].concat())
-        .await?)
+    Ok(stream.write_all(&[&packet_size, packet].concat()).await?)
 }
 
 async fn receive_message(stream: &mut BufReader<TcpStream>) -> Result<String> {

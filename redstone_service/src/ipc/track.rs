@@ -1,6 +1,6 @@
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
-    api::{get_api_base_url, get_http_client, jar::get_jar},
+    api::{get_api_base_url, get_http_client, handle_response, jar::get_jar},
     model::{
         api::{DeclareBackupRequest, DeclareBackupResponse},
         backup::IndexFile,
@@ -55,18 +55,10 @@ pub async fn handle_track_msg(
 
     let total_size = fs_tree.total_size();
     let root_folder = fs_tree.root.clone();
-    let request = DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root, fs_tree.files);
+    let declare_request =
+        DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root, fs_tree.files);
 
-    let cookie_jar = get_jar().unwrap();
-    let base_url = get_api_base_url();
-    let declare_response: DeclareBackupResponse = get_http_client(cookie_jar)
-        .post(base_url.join("/api/upload/declare").unwrap())
-        .json(&request)
-        .send()
-        .await?
-        .json()
-        .await?;
-
+    let declare_response = declare(&declare_request).await?;
     // create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
     let (_, _) = tokio::join!(
@@ -113,6 +105,18 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     }
     message += "\nDo you wish to continue?";
     message
+}
+
+async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBackupResponse> {
+    let cookie_jar = get_jar().unwrap();
+    let base_url = get_api_base_url();
+    let response = get_http_client(cookie_jar)
+        .post(base_url.join("/api/upload/declare").unwrap())
+        .json(&request)
+        .send()
+        .await?;
+
+    handle_response(response).await
 }
 
 fn create_files(

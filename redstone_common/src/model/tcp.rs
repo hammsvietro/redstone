@@ -1,9 +1,12 @@
-/// TCP message models
-
-use std::{path::PathBuf, fs::File, io::{Seek, SeekFrom, Read}};
-use serde::{Deserialize, Serialize};
-use crate::constants::TCP_FILE_CHUNK_SIZE;
 use super::Result;
+use crate::constants::TCP_FILE_CHUNK_SIZE;
+use serde::{Deserialize, Serialize};
+/// TCP message models
+use std::{
+    fs::File,
+    io::{Read, Seek, SeekFrom},
+    path::PathBuf,
+};
 
 pub struct AbortUpdateMessageFactory {
     upload_token: String,
@@ -20,10 +23,10 @@ impl TcpMessage for AbortUpdateMessageFactory {
     fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
         let message = AbortMessage {
             upload_token: self.upload_token.to_string(),
-            operation: Self::OPERATION
+            operation: Self::OPERATION,
         };
         Ok(bson::to_vec(&message)?)
-    } 
+    }
 }
 
 pub struct FileUploadMessageFactory {
@@ -32,7 +35,7 @@ pub struct FileUploadMessageFactory {
     file_path: PathBuf,
     chunk_offset: usize,
     file_size: usize,
-    read_bytes: usize
+    read_bytes: usize,
 }
 
 impl FileUploadMessageFactory {
@@ -45,14 +48,14 @@ impl FileUploadMessageFactory {
             file_path,
             chunk_offset: 0,
             file_size: file_size as usize,
-            read_bytes: 0
+            read_bytes: 0,
         }
     }
 
     pub fn has_data_to_fetch(&self) -> bool {
         self.remaining_bytes_to_read() > 0
     }
-    
+
     fn remaining_bytes_to_read(&self) -> usize {
         isize::max((self.file_size - self.read_bytes) as isize, 0) as usize
     }
@@ -80,11 +83,11 @@ impl TcpMessage for FileUploadMessageFactory {
             file_id: self.file_id.to_string(),
             file_size: self.file_size,
             data,
-            last_chunk: !self.has_data_to_fetch()
+            last_chunk: !self.has_data_to_fetch(),
         };
         let encoded = bson::to_vec(&message)?;
         Ok(encoded)
-    } 
+    }
 }
 
 pub trait TcpMessage {
@@ -95,13 +98,13 @@ pub trait TcpMessage {
 #[derive(Deserialize, Serialize, Debug)]
 pub enum TcpOperation {
     Abort,
-    UploadChunk
+    UploadChunk,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 struct AbortMessage {
     pub upload_token: String,
-    pub operation: TcpOperation
+    pub operation: TcpOperation,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -112,6 +115,5 @@ struct FileUploadMessage {
     pub file_size: usize,
     #[serde(with = "serde_bytes")]
     pub data: Vec<u8>,
-    pub last_chunk: bool
+    pub last_chunk: bool,
 }
-

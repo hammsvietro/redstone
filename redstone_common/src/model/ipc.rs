@@ -11,6 +11,19 @@ pub enum IpcMessage {
     Response(IpcMessageResponse),
 }
 
+impl IpcMessage {
+    pub fn is_request(&self) -> bool {
+        match self {
+            Self::Request(_) => true,
+            Self::Response(_) => false,
+        }
+    }
+
+    pub fn is_response(&self) -> bool {
+        !self.is_request()
+    }
+}
+
 ///
 /// REQUEST
 ///
@@ -93,6 +106,15 @@ pub struct IpcMessageResponse {
 impl From<IpcMessageResponse> for IpcMessage {
     fn from(res: IpcMessageResponse) -> Self {
         IpcMessage::Response(res)
+    }
+}
+
+impl From<IpcMessage> for IpcMessageResponse {
+    fn from(message: IpcMessage) -> Self {
+        if let IpcMessage::Response(res) = message {
+            return res;
+        }
+        panic!("Tried to extract 'IpcMessageResponse' from 'IpcMessage' but wrapped object is of another type.");
     }
 }
 

@@ -4,6 +4,13 @@ use std::path::PathBuf;
 use super::fs_tree::RSFile;
 
 #[derive(Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ApiRequestWrapper<T: Serialize> {
+    Ok(T),
+    Err,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct DeclareBackupRequest<'a> {
     pub files: Vec<RSFile>,
     pub root: PathBuf,

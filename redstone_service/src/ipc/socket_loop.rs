@@ -53,8 +53,18 @@ async fn handle_connection(
             }
         };
         let message = IpcMessageRequest::from(ipc_message);
-        let result_msg: IpcMessage =
-            handle_message(connection.borrow_mut(), message.message).await?;
+        let result_msg = handle_message(connection.borrow_mut(), message.message)
+            .await
+            .unwrap_or_else(|err| {
+                IpcMessage::Response(IpcMessageResponse {
+                    message: None,
+                    keep_connection: false,
+                    error: Some(err.to_string()),
+                })
+            });
+
+        println!("error: {result_msg:?}");
+
         if let Err(err) = send_message(connection.borrow_mut(), result_msg.borrow()) {
             eprintln!("{}", err);
             break;

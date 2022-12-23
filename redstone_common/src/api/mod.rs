@@ -1,13 +1,20 @@
-use std::sync::Arc;
+use std::{borrow::BorrowMut, collections::HashMap, sync::Arc};
+
+use crate::model::{RedstoneError, Result};
 
 use reqwest::{cookie::Jar, Url};
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub mod jar;
 
 #[derive(Serialize, Debug)]
 pub struct AuthRequest {
     pub email: String,
     pub password: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ApiErrorResponse {
+    pub errors: HashMap<String, Vec<String>>,
 }
 
 impl AuthRequest {
@@ -36,4 +43,18 @@ pub fn get_blocking_http_client(cookie_jar: Arc<Jar>) -> reqwest::blocking::Clie
         .cookie_provider(cookie_jar.clone())
         .build()
         .unwrap()
+}
+
+pub async fn handle_response<T: DeserializeOwned>(response: reqwest::Response) -> Result<T> {
+    let status_code = response.status();
+    if status_code != reqwest::StatusCode::OK {
+        if let Ok(parsed_error) = response.json::<ApiErrorResponse>().await {
+            return Err(RedstoneError::ApiError(parsed_error));
+        }
+        return Err(RedstoneError::BaseError(format!(
+            "Error while making request with the API:\nStatus code:{}",
+            status_code
+        )));
+    }
+    Ok(response.json::<T>().await?)
 }
