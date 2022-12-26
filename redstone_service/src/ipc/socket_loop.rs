@@ -63,8 +63,6 @@ async fn handle_connection(
                 })
             });
 
-        println!("error: {result_msg:?}");
-
         if let Err(err) = send_message(connection.borrow_mut(), result_msg.borrow()) {
             eprintln!("{}", err);
             break;

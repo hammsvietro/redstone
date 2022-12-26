@@ -87,6 +87,28 @@ impl TcpMessage for FileUploadMessageFactory {
         };
         let encoded = bson::to_vec(&message)?;
         Ok(encoded)
+    } 
+}
+
+pub struct CommitMessageFactory {
+    pub upload_token: String
+}
+
+impl CommitMessageFactory {
+    pub fn new(upload_token: String) -> Self {
+        CommitMessageFactory { upload_token }
+    }
+}
+
+impl TcpMessage for CommitMessageFactory {
+    const OPERATION: TcpOperation = TcpOperation::Commit;
+
+    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+        let message = AbortMessage {
+            upload_token: self.upload_token.to_string(),
+            operation: Self::OPERATION,
+        };
+        Ok(bson::to_vec(&message)?)
     }
 }
 
@@ -99,6 +121,7 @@ pub trait TcpMessage {
 pub enum TcpOperation {
     Abort,
     UploadChunk,
+    Commit,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -116,4 +139,11 @@ struct FileUploadMessage {
     #[serde(with = "serde_bytes")]
     pub data: Vec<u8>,
     pub last_chunk: bool,
+}
+
+
+#[derive(Deserialize, Serialize, Debug)]
+struct CommitMessage {
+    pub upload_token: String,
+    pub operation: TcpOperation,
 }

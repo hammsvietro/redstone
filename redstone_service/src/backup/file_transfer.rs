@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use redstone_common::model::{
     api::File,
-    tcp::{FileUploadMessageFactory, TcpMessage},
+    tcp::{FileUploadMessageFactory, TcpMessage, CommitMessageFactory},
     RedstoneError, Result,
 };
 
@@ -33,6 +33,13 @@ pub async fn send_files(
                 println!("NOT ACK");
                 return Err(RedstoneError::NoHomeDir);
             }
+        }
+        let commit_payload = CommitMessageFactory::new(upload_token.clone()).get_tcp_payload()?;
+        send_message(&mut stream, &commit_payload).await?;
+        if receive_message(&mut stream).await? != String::from("ACK\n") {
+            // TODO: return correct error and send abort message
+            println!("NOT ACK");
+            return Err(RedstoneError::NoHomeDir);
         }
     }
     Ok(())

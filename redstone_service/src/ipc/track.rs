@@ -46,6 +46,7 @@ pub async fn handle_track_msg(
             Err(err) => return Err(err),
         };
     if !confirmation_result.has_accepted {
+        println!("not accepted");
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: None,
