@@ -11,10 +11,7 @@ use redstone_common::{
     },
 };
 use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
-use tokio::{
-    io::AsyncWriteExt,
-    sync::mpsc::{self, UnboundedReceiver},
-};
+use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 use crate::backup::file_transfer::send_files;
 

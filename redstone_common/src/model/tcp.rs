@@ -104,7 +104,7 @@ impl TcpMessage for CommitMessageFactory {
     const OPERATION: TcpOperation = TcpOperation::Commit;
 
     fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
-        let message = AbortMessage {
+        let message = CommitMessage {
             upload_token: self.upload_token.to_string(),
             operation: Self::OPERATION,
         };
