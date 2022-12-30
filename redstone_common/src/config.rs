@@ -1,6 +1,11 @@
+use reqwest::cookie::{CookieStore, Jar};
+
 use super::model::Result;
-use crate::model::{config::AuthData, RedstoneError};
-use std::path::PathBuf;
+use crate::{
+    api::get_api_base_url,
+    model::{config::AuthData, RedstoneError},
+};
+use std::{path::PathBuf, sync::Arc};
 
 pub fn assert_app_data_folder_is_created() -> Result<()> {
     let mut dir = dirs::home_dir().unwrap();
@@ -42,12 +47,14 @@ pub fn get_auth_data() -> Result<Option<AuthData>> {
     if content.len() == 0 {
         return Ok(None);
     }
-    Ok(bincode::deserialize(&content.as_bytes())?)
+    Ok(bincode::deserialize(content.as_bytes())?)
 }
 
-pub fn set_auth_data(auth_data: AuthData) -> Result<()> {
-    let auth_dir = get_auth_dir()?;
-    let data = &bincode::serialize(&Some(auth_data)).unwrap();
-    std::fs::write(auth_dir, &data).unwrap();
+pub fn store_cookies(cookie_jar: Arc<Jar>) -> Result<()> {
+    let base_url = get_api_base_url();
+    let auth_data = String::from(cookie_jar.cookies(&base_url).unwrap().to_str().unwrap());
+    let data = bincode::serialize(&Some(AuthData::new(auth_data))).unwrap();
+
+    std::fs::write(get_auth_dir()?, data).unwrap();
     Ok(())
 }

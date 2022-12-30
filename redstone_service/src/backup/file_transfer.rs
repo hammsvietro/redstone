@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use redstone_common::model::{
     api::File,
-    tcp::{FileUploadMessageFactory, TcpMessage, CommitMessageFactory},
+    tcp::{CommitMessageFactory, FileUploadMessageFactory, TcpMessage},
     RedstoneError, Result,
 };
 

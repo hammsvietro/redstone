@@ -1,7 +1,26 @@
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::api::get_api_base_url;
+
 use super::fs_tree::RSFile;
+
+pub enum Endpoints {
+    Declare,
+    Login,
+}
+
+impl Endpoints {
+    pub fn get_url(&self) -> Url {
+        let base_url = get_api_base_url();
+        let sufix = match *self {
+            Self::Declare => "/api/upload/declare",
+            Self::Login => "/api/login",
+        };
+        base_url.join(sufix).unwrap()
+    }
+}
 
 #[derive(Deserialize, Serialize)]
 #[serde(untagged)]

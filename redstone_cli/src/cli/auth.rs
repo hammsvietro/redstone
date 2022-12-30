@@ -1,15 +1,13 @@
 use std::io::Write;
 
 use redstone_common::{
-    api::{get_api_base_url, jar::get_jar, AuthRequest},
-    config::set_auth_data,
-    model::{config::AuthData, Result},
+    api::{jar::get_jar, AuthRequest},
+    config::store_cookies,
+    model::{api::Endpoints, RedstoneError, Result},
 };
-use reqwest::cookie::CookieStore;
 
 pub fn run_auth_cmd() -> Result<()> {
     let auth_request = prompt_credentials()?;
-    let base_url = get_api_base_url();
     let cookie_jar = get_jar()?;
 
     let client = reqwest::blocking::ClientBuilder::new()
@@ -18,28 +16,17 @@ pub fn run_auth_cmd() -> Result<()> {
         .build()
         .unwrap();
     let res = client
-        .post(base_url.join("/api/login").unwrap())
+        .post(Endpoints::Login.get_url())
         .json(&auth_request)
-        .send();
+        .send()?;
 
-    if let Err(err) = res {
-        if err.is_request() {
-            println!(
-                "Could not connect to the provided endpoint ({}).",
-                base_url.to_string()
-            );
-        } else {
-            println!("Something went wrong");
-        }
-        return Ok(());
+    if res.status() != reqwest::StatusCode::OK {
+        return Err(RedstoneError::BaseError(String::from(
+            "Incorrect Credentails",
+        )));
     }
-    let res = res.unwrap();
-    if res.status() == reqwest::StatusCode::FORBIDDEN {
-        println!("Incorrect Credentails");
-        return Ok(());
-    }
-    let auth_cookies = String::from(cookie_jar.cookies(&base_url).unwrap().to_str().unwrap());
-    set_auth_data(AuthData::new(auth_cookies))?;
+
+    store_cookies(cookie_jar)?;
     println!("Successfully authenticated!");
     Ok(())
 }

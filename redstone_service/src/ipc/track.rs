@@ -2,7 +2,7 @@ use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     api::{get_api_base_url, get_http_client, handle_response, jar::get_jar},
     model::{
-        api::{DeclareBackupRequest, DeclareBackupResponse},
+        api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
         backup::IndexFile,
         fs_tree::FSTree,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
@@ -107,9 +107,8 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
 
 async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBackupResponse> {
     let cookie_jar = get_jar().unwrap();
-    let base_url = get_api_base_url();
     let response = get_http_client(cookie_jar)
-        .post(base_url.join("/api/upload/declare").unwrap())
+        .post(Endpoints::Declare.get_url())
         .json(&request)
         .send()
         .await?;

@@ -73,9 +73,9 @@ async fn handle_connection(
             }
         }
     }
-    // let new_job = UpdateJob {
+    // let new_job = updatejob {
     //     backup_id: 4,
-    //     cron_expr: String::from("*/2 * * * * * *")
+    //     cron_expr: string::from("*/2 * * * * * *")
     // };
     // new_job_sender.send(new_job).unwrap();
     println!("Closing socket");

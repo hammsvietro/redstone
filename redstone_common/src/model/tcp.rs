@@ -87,11 +87,11 @@ impl TcpMessage for FileUploadMessageFactory {
         };
         let encoded = bson::to_vec(&message)?;
         Ok(encoded)
-    } 
+    }
 }
 
 pub struct CommitMessageFactory {
-    pub upload_token: String
+    pub upload_token: String,
 }
 
 impl CommitMessageFactory {
@@ -140,7 +140,6 @@ struct FileUploadMessage {
     pub data: Vec<u8>,
     pub last_chunk: bool,
 }
-
 
 #[derive(Deserialize, Serialize, Debug)]
 struct CommitMessage {
