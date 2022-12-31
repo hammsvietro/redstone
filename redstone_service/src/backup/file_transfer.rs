@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use redstone_common::model::{
+use redstone_common::{model::{
     api::File,
-    tcp::{CommitMessageFactory, FileUploadMessageFactory, TcpMessage},
+    tcp::{CommitMessageFactory, FileUploadMessageFactory, TcpMessage, CheckFileMessageFactory, TcpMessageResponse, TcpMessageResponseStatus},
     RedstoneError, Result,
-};
+}, web::tcp::{send_message, receive_message}};
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, BufReader},
+    io::BufReader,
     net::TcpStream,
     sync::mpsc::UnboundedSender,
 };
@@ -22,44 +22,48 @@ pub async fn send_files(
     let mut stream = BufReader::new(stream);
     for file in files {
         println!("Uploading {} file", file.path);
-        let mut file_upload_message =
-            FileUploadMessageFactory::new(upload_token.clone(), file, root_folder.clone());
-        while file_upload_message.has_data_to_fetch() {
-            let packet = file_upload_message.get_tcp_payload()?;
-            send_message(&mut stream, &packet).await?;
-            let response = receive_message(&mut stream).await?;
-            if response != String::from("ACK\n") {
-                // TODO: return correct error and send abort message
-                println!("NOT ACK");
-                return Err(RedstoneError::NoHomeDir);
+        let mut retry_count: u8 = 0;
+        loop {
+            let mut file_upload_message =
+                FileUploadMessageFactory::new(&upload_token, &file, root_folder.clone());
+            while file_upload_message.has_data_to_fetch() {
+                let packet = file_upload_message.get_tcp_payload()?;
+                send_message(&mut stream, &packet).await?;
+                let response: TcpMessageResponse = receive_message(&mut stream).await?;
+                if response.status != TcpMessageResponseStatus::Ok {
+                    // TODO: send abort message
+                    let error = format!("Error commiting backup transaction.\nServer responded: {}", response.reason.unwrap());
+                    return Err(RedstoneError::BaseError(error));
+                }
+            }
+            let check_file_message = CheckFileMessageFactory::new(&upload_token, &file.id).get_tcp_payload()?;
+            send_message(&mut stream, &check_file_message).await?;
+            let response: TcpMessageResponse = receive_message(&mut stream).await?;
+            if response.status == TcpMessageResponseStatus::Ok {
+                break;
+            } else {
+                retry_count += 1;
+                if retry_count > 4 {
+                    return Err(
+                        RedstoneError::BaseError(
+                            format!(
+                                "File upload retry count exceeded.\nServer returned: {:?}",
+                                response.reason.unwrap()
+                            )
+                        )
+                    )
+                }
             }
         }
     }
     let commit_payload = CommitMessageFactory::new(upload_token.clone()).get_tcp_payload()?;
     println!("Sending commit msg!");
     send_message(&mut stream, &commit_payload).await?;
-    if receive_message(&mut stream).await? != String::from("ACK\n") {
-        // TODO: return correct error and send abort message
-        println!("NOT ACK");
-        return Err(RedstoneError::NoHomeDir);
+    let response: TcpMessageResponse = receive_message(&mut stream).await?;
+    if response.status != TcpMessageResponseStatus::Ok {
+        let error = format!("Error commiting backup transaction.\nServer responded: {}", response.reason.unwrap());
+        return Err(RedstoneError::BaseError(error));
     }
     Ok(())
 }
 
-fn get_message_size_in_bytes(message: &[u8]) -> [u8; 4] {
-    (message.len() as u32).to_be_bytes()
-}
-
-async fn send_message(stream: &mut BufReader<TcpStream>, packet: &[u8]) -> Result<()> {
-    let packet_size = get_message_size_in_bytes(packet);
-    Ok(stream.write_all(&[&packet_size, packet].concat()).await?)
-}
-
-async fn receive_message(stream: &mut BufReader<TcpStream>) -> Result<String> {
-    let mut incoming_packet_buf: [u8; 4] = [0; 4];
-    stream.read_exact(&mut incoming_packet_buf).await?;
-    let incoming_packet_size = u32::from_be_bytes(incoming_packet_buf);
-    let mut buffer = vec![0; incoming_packet_size as usize];
-    stream.read_exact(&mut buffer).await?;
-    Ok(String::from_utf8(buffer).unwrap())
-}

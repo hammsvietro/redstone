@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use redstone_common::{
-    api::{jar::get_jar, AuthRequest},
+    web::api::{jar::get_jar, AuthRequest},
     config::store_cookies,
     model::{api::Endpoints, RedstoneError, Result},
 };

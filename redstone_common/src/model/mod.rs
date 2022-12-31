@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, fmt::Display};
 
-use crate::api::ApiErrorResponse;
+use crate::web::api::ApiErrorResponse;
 
 pub mod api;
 pub mod backup;
@@ -45,6 +45,12 @@ impl From<std::io::Error> for RedstoneError {
 impl From<Box<bincode::ErrorKind>> for RedstoneError {
     fn from(error_kind: Box<bincode::ErrorKind>) -> Self {
         RedstoneError::SerdeError(error_kind.to_string())
+    }
+}
+
+impl From<bson::de::Error> for RedstoneError {
+    fn from(error: bson::de::Error) -> Self {
+        RedstoneError::SerdeError(error.to_string())
     }
 }
 

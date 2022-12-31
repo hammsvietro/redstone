@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
-    path::PathBuf,
+    path::PathBuf, borrow::Borrow,
 };
 
 pub struct AbortUpdateMessageFactory {
@@ -39,12 +39,12 @@ pub struct FileUploadMessageFactory {
 }
 
 impl FileUploadMessageFactory {
-    pub fn new(upload_token: String, file: super::api::File, root_folder: PathBuf) -> Self {
-        let file_path = root_folder.join(file.path);
+    pub fn new(upload_token: &String, file: &super::api::File, root_folder: PathBuf) -> Self {
+        let file_path = root_folder.join(file.path.clone());
         let file_size = std::fs::metadata(&file_path).unwrap().len();
         Self {
-            upload_token,
-            file_id: file.id,
+            upload_token: upload_token.to_owned(),
+            file_id: file.id.to_string(),
             file_path,
             chunk_offset: 0,
             file_size: file_size as usize,
@@ -112,22 +112,61 @@ impl TcpMessage for CommitMessageFactory {
     }
 }
 
+pub struct CheckFileMessageFactory {
+    pub upload_token: String,
+    pub file_id: String
+}
+
+impl CheckFileMessageFactory {
+    pub fn new(upload_token: &String, file_id: &String) -> Self {
+        Self { upload_token: upload_token.to_owned(), file_id: file_id.to_owned() }
+    }
+}
+
+impl TcpMessage for CheckFileMessageFactory {
+    const OPERATION: TcpOperation = TcpOperation::CheckFile;
+    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+        let message = CheckFileMessage {
+            upload_token: self.upload_token.to_string(),
+            file_id: self.file_id.to_string(),
+            operation: Self::OPERATION
+        };
+
+        Ok(bson::to_vec(&message)?)
+    }
+}
+
 pub trait TcpMessage {
     const OPERATION: TcpOperation;
     fn get_tcp_payload(&mut self) -> Result<Vec<u8>>;
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum TcpOperation {
     Abort,
     UploadChunk,
     Commit,
+    CheckFile
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 struct AbortMessage {
     pub upload_token: String,
     pub operation: TcpOperation,
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TcpMessageResponseStatus {
+    Ok,
+    Error
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TcpMessageResponse {
+    pub status: TcpMessageResponseStatus,
+    pub reason: Option<String>
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -146,3 +185,11 @@ struct CommitMessage {
     pub upload_token: String,
     pub operation: TcpOperation,
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+struct CheckFileMessage {
+    pub upload_token: String,
+    pub file_id: String,
+    pub operation: TcpOperation,
+}
+

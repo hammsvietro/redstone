@@ -1,6 +1,6 @@
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
-    api::{get_api_base_url, get_http_client, handle_response, jar::get_jar},
+    web::api::{get_http_client, handle_response, jar::get_jar},
     model::{
         api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
         backup::IndexFile,

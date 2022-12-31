@@ -2,7 +2,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::api::get_api_base_url;
+use crate::web::api::get_api_base_url;
 
 use super::fs_tree::RSFile;
 
