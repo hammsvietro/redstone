@@ -62,7 +62,7 @@ pub struct Backup {
 pub struct File {
     pub id: String,
     pub path: String,
-    pub sha1_checksum: String,
+    pub sha256_checksum: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

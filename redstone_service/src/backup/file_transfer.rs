@@ -37,9 +37,12 @@ pub async fn send_files(
                 }
             }
             let check_file_message = CheckFileMessageFactory::new(&upload_token, &file.id).get_tcp_payload()?;
+            println!("Verifying checksum");
             send_message(&mut stream, &check_file_message).await?;
             let response: TcpMessageResponse = receive_message(&mut stream).await?;
             if response.status == TcpMessageResponseStatus::Ok {
+                println!("Checksum matches");
+                println!("{} upload complete\n", file.path);
                 break;
             } else {
                 retry_count += 1;
