@@ -57,17 +57,17 @@ pub async fn handle_track_msg(
         DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root, fs_tree.files);
 
     let declare_response = declare(&declare_request).await?;
-    // create_files(&index_file_path, res, track_request.borrow_mut()).unwrap();
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
     let (_, _) = tokio::join!(
+        send_progress(&mut rx, total_size),
         send_files(
-            declare_response.backup.files,
-            declare_response.update_token,
+            &declare_response.backup.files,
+            &declare_response.update_token,
             root_folder,
             tx
-        ),
-        send_progress(&mut rx, total_size)
+        )
     );
+    create_files(&index_file_path, declare_response, track_request.borrow_mut())?;
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
@@ -80,10 +80,10 @@ fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
 }
 
 async fn send_progress(progress_receiver: &mut UnboundedReceiver<u64>, total_size: u64) {
-    while let Some(sent) = progress_receiver.recv().await {
-        println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
+    // while let Some(sent) = progress_receiver.recv().await {
+    //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
         // send to cli
-    }
+    // }
 }
 
 fn get_confirmation_request_message(fs_tree: &FSTree) -> String {

@@ -13,13 +13,14 @@ use tokio::{
 };
 
 pub async fn send_files(
-    files: Vec<File>,
-    upload_token: String,
+    files: &Vec<File>,
+    upload_token: &String,
     root_folder: PathBuf,
-    _progress_emitter: UnboundedSender<u64>,
+    progress_emitter: UnboundedSender<u64>,
 ) -> Result<()> {
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
+    let mut bytes_sent: u64 = 0;
     for file in files {
         println!("Uploading {} file", file.path);
         let mut retry_count: u8 = 0;
@@ -29,6 +30,8 @@ pub async fn send_files(
             while file_upload_message.has_data_to_fetch() {
                 let packet = file_upload_message.get_tcp_payload()?;
                 send_message(&mut stream, &packet).await?;
+                bytes_sent += file_upload_message.last_chunk_size as u64;
+                progress_emitter.send(bytes_sent)?;
                 let response: TcpMessageResponse = receive_message(&mut stream).await?;
                 if response.status != TcpMessageResponseStatus::Ok {
                     // TODO: send abort message

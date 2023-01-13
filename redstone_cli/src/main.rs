@@ -9,7 +9,7 @@ fn main() -> Result<()> {
     match cli::input() {
         Ok(_) => Ok(()),
         Err(err) => {
-            eprintln!("Error:\n{err}");
+            eprintln!("{err}");
             Ok(())
         }
     }

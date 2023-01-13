@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::model::{RedstoneError, Result};
 
@@ -15,6 +15,7 @@ pub struct AuthRequest {
 #[derive(Deserialize, Debug)]
 pub struct ApiErrorResponse {
     pub errors: HashMap<String, Vec<String>>,
+    pub stringified_errors: String
 }
 
 impl AuthRequest {
@@ -52,7 +53,7 @@ pub async fn handle_response<T: DeserializeOwned>(response: reqwest::Response) -
             return Err(RedstoneError::ApiError(parsed_error));
         }
         return Err(RedstoneError::BaseError(format!(
-            "Error while making request with the API:\nStatus code:{}",
+            "Error while making request with the API:\nStatus code: {}",
             status_code
         )));
     }

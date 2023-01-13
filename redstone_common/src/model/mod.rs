@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt::Display};
+use std::fmt::Display;
 
 use crate::web::api::ApiErrorResponse;
 
@@ -21,6 +21,7 @@ pub enum RedstoneError {
     IOError(String),
     NoHomeDir,
     SerdeError(String),
+    TokioError(String),
     Unauthorized,
 }
 
@@ -60,6 +61,12 @@ impl From<bson::ser::Error> for RedstoneError {
     }
 }
 
+impl From<tokio::sync::mpsc::error::SendError<u64>> for RedstoneError {
+    fn from(error: tokio::sync::mpsc::error::SendError<u64>) -> Self {
+        RedstoneError::TokioError(error.to_string())
+    }
+}
+
 impl From<reqwest::Error> for RedstoneError {
     fn from(error: reqwest::Error) -> Self {
         RedstoneError::HttpError(error.to_string())
@@ -69,7 +76,7 @@ impl From<reqwest::Error> for RedstoneError {
 impl Display for RedstoneError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error: String = match self {
-            Self::ApiError(error) => format_api_error(error),
+            Self::ApiError(error) => error.stringified_errors.to_owned(),
             Self::BaseError(error) => error.to_owned(),
             Self::ConnectionTimeout => String::from("Connection timed out."),
             Self::CronParseError(cron) => format!("Couldn't parse cron string: {cron}"),
@@ -85,17 +92,12 @@ impl Display for RedstoneError {
             Self::SerdeError(error) => {
                 format!("An error occoured while serializing or serializing data:\n{error}")
             }
+            Self::TokioError(error) => {
+                error.to_owned()
+            }
         };
         write!(f, "{}", error)
     }
-}
-
-fn format_api_error(error: &ApiErrorResponse) -> String {
-    let mut error_string = String::from("");
-    for (error, reasons) in error.errors.borrow().into_iter() {
-        error_string += format!("{}:\n- {}\n", error, reasons.join("\n- ")).as_str();
-    }
-    error_string
 }
 
 pub type Result<T> = std::result::Result<T, RedstoneError>;

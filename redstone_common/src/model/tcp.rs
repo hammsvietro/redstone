@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
-    path::PathBuf, borrow::Borrow,
+    path::PathBuf
 };
 
 pub struct AbortUpdateMessageFactory {
@@ -36,6 +36,7 @@ pub struct FileUploadMessageFactory {
     chunk_offset: usize,
     file_size: usize,
     read_bytes: usize,
+    pub last_chunk_size: usize
 }
 
 impl FileUploadMessageFactory {
@@ -49,6 +50,7 @@ impl FileUploadMessageFactory {
             chunk_offset: 0,
             file_size: file_size as usize,
             read_bytes: 0,
+            last_chunk_size: 0,
         }
     }
 
@@ -62,6 +64,7 @@ impl FileUploadMessageFactory {
 
     fn get_next_chunk(&mut self) -> Result<Vec<u8>> {
         let chunk_size = usize::min(self.remaining_bytes_to_read(), TCP_FILE_CHUNK_SIZE);
+        self.last_chunk_size = chunk_size;
         let mut file = File::open(&self.file_path)?;
         file.seek(SeekFrom::Start(self.read_bytes as u64))?;
         let mut buffer: Vec<u8> = vec![0; chunk_size];

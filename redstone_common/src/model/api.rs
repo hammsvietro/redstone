@@ -45,6 +45,7 @@ impl<'a> DeclareBackupRequest<'a> {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct DeclareBackupResponse {
     pub backup: Backup,
+    pub update: Update,
     pub update_token: String,
 }
 
@@ -69,4 +70,10 @@ pub struct File {
 pub struct ServerToken {
     pub id: String,
     pub token: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Update {
+   hash: String, 
+   message: String, 
 }
