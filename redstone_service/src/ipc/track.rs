@@ -62,7 +62,7 @@ pub async fn handle_track_msg(
         send_progress(&mut rx, total_size),
         send_files(
             &declare_response.backup.files,
-            &declare_response.update_token,
+            &declare_response.upload_token,
             root_folder,
             tx
         )

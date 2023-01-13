@@ -46,7 +46,7 @@ impl<'a> DeclareBackupRequest<'a> {
 pub struct DeclareBackupResponse {
     pub backup: Backup,
     pub update: Update,
-    pub update_token: String,
+    pub upload_token: String,
 }
 
 /* SERVER ENTITIES */
