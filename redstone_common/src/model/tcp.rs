@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
-    path::PathBuf
+    path::PathBuf,
 };
 
 pub struct AbortUpdateMessageFactory {
@@ -36,7 +36,7 @@ pub struct FileUploadMessageFactory {
     chunk_offset: usize,
     file_size: usize,
     read_bytes: usize,
-    pub last_chunk_size: usize
+    pub last_chunk_size: usize,
 }
 
 impl FileUploadMessageFactory {
@@ -117,12 +117,15 @@ impl TcpMessage for CommitMessageFactory {
 
 pub struct CheckFileMessageFactory {
     pub upload_token: String,
-    pub file_id: String
+    pub file_id: String,
 }
 
 impl CheckFileMessageFactory {
     pub fn new(upload_token: &String, file_id: &String) -> Self {
-        Self { upload_token: upload_token.to_owned(), file_id: file_id.to_owned() }
+        Self {
+            upload_token: upload_token.to_owned(),
+            file_id: file_id.to_owned(),
+        }
     }
 }
 
@@ -132,7 +135,7 @@ impl TcpMessage for CheckFileMessageFactory {
         let message = CheckFileMessage {
             upload_token: self.upload_token.to_string(),
             file_id: self.file_id.to_string(),
-            operation: Self::OPERATION
+            operation: Self::OPERATION,
         };
 
         Ok(bson::to_vec(&message)?)
@@ -150,7 +153,7 @@ pub enum TcpOperation {
     Abort,
     UploadChunk,
     Commit,
-    CheckFile
+    CheckFile,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -163,13 +166,13 @@ struct AbortMessage {
 #[serde(rename_all = "snake_case")]
 pub enum TcpMessageResponseStatus {
     Ok,
-    Error
+    Error,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TcpMessageResponse {
     pub status: TcpMessageResponseStatus,
-    pub reason: Option<String>
+    pub reason: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -195,4 +198,3 @@ struct CheckFileMessage {
     pub file_id: String,
     pub operation: TcpOperation,
 }
-

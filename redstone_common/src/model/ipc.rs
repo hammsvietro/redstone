@@ -1,4 +1,7 @@
-use super::track::{TrackMessageResponse, TrackRequest};
+use super::{
+    track::{TrackMessageResponse, TrackRequest},
+    RedstoneError,
+};
 use serde::{Deserialize, Serialize};
 
 ///
@@ -19,8 +22,22 @@ impl IpcMessage {
         }
     }
 
+    pub fn is_confirmation_request(&self) -> bool {
+        match self {
+            Self::Request(request) => request.is_confirmation(),
+            Self::Response(_) => false,
+        }
+    }
+
     pub fn is_response(&self) -> bool {
         !self.is_request()
+    }
+
+    pub fn has_errors(&self) -> bool {
+        match self {
+            Self::Request(_) => false,
+            Self::Response(response) => response.error.is_some(),
+        }
     }
 }
 
@@ -100,7 +117,7 @@ impl From<ConfirmationRequest> for IpcMessage {
 pub struct IpcMessageResponse {
     pub message: Option<IpcMessageResponseType>,
     pub keep_connection: bool,
-    pub error: Option<String>,
+    pub error: Option<RedstoneError>,
 }
 
 impl From<IpcMessageResponse> for IpcMessage {

@@ -14,7 +14,7 @@ pub struct Config {
 pub struct IndexFile {
     pub config: BackupConfig,
     pub backup: Backup,
-    pub current_update: Update
+    pub current_update: Update,
 }
 
 impl IndexFile {
@@ -26,7 +26,7 @@ impl IndexFile {
                 watch: track_request.watch,
                 entrypoint: String::from(track_request.base_path.to_str().unwrap()),
             },
-            current_update: declare_response.update
+            current_update: declare_response.update,
         }
     }
 }

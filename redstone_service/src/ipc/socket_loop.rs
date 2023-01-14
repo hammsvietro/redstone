@@ -45,7 +45,7 @@ async fn handle_connection(
                     connection.borrow_mut(),
                     &IpcMessage::Response(IpcMessageResponse {
                         message: None,
-                        error: Some(err.to_string()),
+                        error: Some(err.clone()),
                         keep_connection: false,
                     }),
                 );
@@ -59,7 +59,7 @@ async fn handle_connection(
                 IpcMessage::Response(IpcMessageResponse {
                     message: None,
                     keep_connection: false,
-                    error: Some(err.to_string()),
+                    error: Some(err),
                 })
             });
 

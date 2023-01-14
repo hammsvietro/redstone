@@ -2,8 +2,8 @@ use reqwest::cookie::{CookieStore, Jar};
 
 use super::model::Result;
 use crate::{
-    web::api::get_api_base_url,
     model::{config::AuthData, RedstoneError},
+    web::api::get_api_base_url,
 };
 use std::{path::PathBuf, sync::Arc};
 

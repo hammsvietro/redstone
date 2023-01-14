@@ -12,10 +12,10 @@ pub struct AuthRequest {
     pub password: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiErrorResponse {
     pub errors: HashMap<String, Vec<String>>,
-    pub stringified_errors: String
+    pub stringified_errors: String,
 }
 
 impl AuthRequest {

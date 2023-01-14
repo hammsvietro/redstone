@@ -1,4 +1,4 @@
-use crate::{model::Result, config::get_auth_data};
+use crate::{config::get_auth_data, model::Result};
 
 use super::get_api_base_url;
 use reqwest::cookie::Jar;

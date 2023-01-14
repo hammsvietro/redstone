@@ -1,16 +1,18 @@
 use std::path::PathBuf;
 
-use redstone_common::{model::{
-    api::File,
-    tcp::{CommitMessageFactory, FileUploadMessageFactory, TcpMessage, CheckFileMessageFactory, TcpMessageResponse, TcpMessageResponseStatus},
-    RedstoneError, Result,
-}, web::tcp::{send_message, receive_message}};
-
-use tokio::{
-    io::BufReader,
-    net::TcpStream,
-    sync::mpsc::UnboundedSender,
+use redstone_common::{
+    model::{
+        api::File,
+        tcp::{
+            CheckFileMessageFactory, CommitMessageFactory, FileUploadMessageFactory, TcpMessage,
+            TcpMessageResponse, TcpMessageResponseStatus,
+        },
+        RedstoneError, Result,
+    },
+    web::tcp::{receive_message, send_message},
 };
+
+use tokio::{io::BufReader, net::TcpStream, sync::mpsc::UnboundedSender};
 
 pub async fn send_files(
     files: &Vec<File>,
@@ -35,11 +37,15 @@ pub async fn send_files(
                 let response: TcpMessageResponse = receive_message(&mut stream).await?;
                 if response.status != TcpMessageResponseStatus::Ok {
                     // TODO: send abort message
-                    let error = format!("Error commiting backup transaction.\nServer responded: {}", response.reason.unwrap());
+                    let error = format!(
+                        "Error commiting backup transaction.\nServer responded: {}",
+                        response.reason.unwrap()
+                    );
                     return Err(RedstoneError::BaseError(error));
                 }
             }
-            let check_file_message = CheckFileMessageFactory::new(&upload_token, &file.id).get_tcp_payload()?;
+            let check_file_message =
+                CheckFileMessageFactory::new(&upload_token, &file.id).get_tcp_payload()?;
             println!("Verifying checksum");
             send_message(&mut stream, &check_file_message).await?;
             let response: TcpMessageResponse = receive_message(&mut stream).await?;
@@ -50,14 +56,10 @@ pub async fn send_files(
             } else {
                 retry_count += 1;
                 if retry_count > 4 {
-                    return Err(
-                        RedstoneError::BaseError(
-                            format!(
-                                "File upload retry count exceeded.\nServer returned: {:?}",
-                                response.reason.unwrap()
-                            )
-                        )
-                    )
+                    return Err(RedstoneError::BaseError(format!(
+                        "File upload retry count exceeded.\nServer returned: {:?}",
+                        response.reason.unwrap()
+                    )));
                 }
             }
         }
@@ -67,9 +69,11 @@ pub async fn send_files(
     send_message(&mut stream, &commit_payload).await?;
     let response: TcpMessageResponse = receive_message(&mut stream).await?;
     if response.status != TcpMessageResponseStatus::Ok {
-        let error = format!("Error commiting backup transaction.\nServer responded: {}", response.reason.unwrap());
+        let error = format!(
+            "Error commiting backup transaction.\nServer responded: {}",
+            response.reason.unwrap()
+        );
         return Err(RedstoneError::BaseError(error));
     }
     Ok(())
 }
-

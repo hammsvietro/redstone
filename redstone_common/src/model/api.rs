@@ -74,6 +74,6 @@ pub struct ServerToken {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Update {
-   hash: String, 
-   message: String, 
+    hash: String,
+    message: String,
 }

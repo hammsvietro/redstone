@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 use crate::web::api::ApiErrorResponse;
 
 pub mod api;
@@ -10,9 +12,10 @@ pub mod ipc;
 pub mod tcp;
 pub mod track;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RedstoneError {
     ApiError(ApiErrorResponse),
+    ArgumentError(ArgumentError),
     BaseError(String),
     ConnectionTimeout,
     CronParseError(String),
@@ -73,11 +76,18 @@ impl From<reqwest::Error> for RedstoneError {
     }
 }
 
+impl From<ignore::Error> for RedstoneError {
+    fn from(error: ignore::Error) -> Self {
+        RedstoneError::IOError(error.to_string())
+    }
+}
+
 impl Display for RedstoneError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error: String = match self {
             Self::ApiError(error) => error.stringified_errors.to_owned(),
             Self::BaseError(error) => error.to_owned(),
+            Self::ArgumentError(error) => error.to_string(),
             Self::ConnectionTimeout => String::from("Connection timed out."),
             Self::CronParseError(cron) => format!("Couldn't parse cron string: {cron}"),
             Self::IOError(reason) => format!("{reason}"),
@@ -92,12 +102,26 @@ impl Display for RedstoneError {
             Self::SerdeError(error) => {
                 format!("An error occoured while serializing or serializing data:\n{error}")
             }
-            Self::TokioError(error) => {
-                error.to_owned()
-            }
+            Self::TokioError(error) => error.to_owned(),
         };
         write!(f, "{}", error)
     }
 }
 
 pub type Result<T> = std::result::Result<T, RedstoneError>;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ArgumentError {
+    InvalidPath(String),
+    PathCannotBeAFile(String),
+}
+
+impl Display for ArgumentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error: String = match self {
+            Self::InvalidPath(path) => format!("Path \"{path}\" is not valid."),
+            Self::PathCannotBeAFile(path) => format!("Path \"{path}\" cannot be a file."),
+        };
+        write!(f, "{}", error)
+    }
+}

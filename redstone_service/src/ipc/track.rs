@@ -1,14 +1,14 @@
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
-    web::api::{get_http_client, handle_response, jar::get_jar},
     model::{
         api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
         backup::IndexFile,
         fs_tree::FSTree,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
         track::{TrackMessageResponse, TrackRequest},
-        Result,
+        RedstoneError, Result,
     },
+    web::api::{get_http_client, handle_response, jar::get_jar},
 };
 use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
@@ -24,12 +24,14 @@ pub async fn handle_track_msg(
     let message = TrackMessageResponse {
         data: String::from("=)"),
     };
-    let fs_tree = FSTree::new(track_request.base_path.clone(), None);
+    let fs_tree = FSTree::build(track_request.base_path.clone(), None)?;
     let index_file_path = fs_tree.get_index_file_for_root();
     if index_file_path.exists() {
         return wrap(IpcMessageResponse {
             keep_connection: false,
-            error: Some(String::from("Directory specified is already being tracked")),
+            error: Some(RedstoneError::BaseError(String::from(
+                "Directory specified is already being tracked",
+            ))),
             message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
         });
     }
@@ -67,7 +69,11 @@ pub async fn handle_track_msg(
             tx
         )
     );
-    create_files(&index_file_path, declare_response, track_request.borrow_mut())?;
+    create_files(
+        &index_file_path,
+        declare_response,
+        track_request.borrow_mut(),
+    )?;
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
@@ -82,7 +88,7 @@ fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
 async fn send_progress(progress_receiver: &mut UnboundedReceiver<u64>, total_size: u64) {
     // while let Some(sent) = progress_receiver.recv().await {
     //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
-        // send to cli
+    //  // send to cli
     // }
 }
 

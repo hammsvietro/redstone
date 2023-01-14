@@ -1,8 +1,10 @@
-use ignore::{Error, WalkBuilder};
+use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 
 use crate::util::generate_sha256_digest;
+
+use super::{ArgumentError, RedstoneError, Result};
 
 type Sha256Digest = String;
 
@@ -46,17 +48,23 @@ pub struct FSTree {
 }
 
 impl FSTree {
-    pub fn new(root: PathBuf, max_depth: Option<u16>) -> Self {
+    pub fn build(root: PathBuf, max_depth: Option<u16>) -> Result<Self> {
+        let root_is_file = root.is_file();
         let mut fs_tree = FSTree {
             root,
             files: Vec::new(),
             max_depth,
         };
-        let root_as_string = &fs_tree.root.to_str().unwrap();
-        fs_tree.files =
-            read_dir(&fs_tree.root, 0, max_depth, root_as_string, &mut Vec::new()).unwrap();
 
-        fs_tree
+        let root_as_string = &fs_tree.root.to_str().unwrap();
+        if root_is_file {
+            return Err(RedstoneError::ArgumentError(
+                ArgumentError::PathCannotBeAFile(String::from(*root_as_string)),
+            ));
+        }
+        fs_tree.files = read_dir(&fs_tree.root, 0, max_depth, root_as_string, &mut Vec::new())?;
+
+        Ok(fs_tree)
     }
     pub fn get_index_file_for_root(&self) -> PathBuf {
         let mut path = self.root.clone();
@@ -86,7 +94,7 @@ fn read_dir(
     max_depth: Option<u16>,
     root: &str,
     ignores: &mut Vec<String>,
-) -> Result<Vec<RSFile>, Error> {
+) -> Result<Vec<RSFile>> {
     let mut file_tree_items = Vec::new();
     if max_depth.is_some() && depth > max_depth.unwrap() {
         return Ok(file_tree_items);
@@ -151,7 +159,7 @@ mod tests {
     #[test]
     fn scans_a_directory_recursively() {
         let path = PathBuf::from_str("./test-data").unwrap();
-        let mut fs_tree = FSTree::new(path.clone(), None);
+        let mut fs_tree = FSTree::build(path.clone(), None).unwrap();
         let files = vec![
             RSFile::new(
                 String::from("./test-data/other_folder/other_file.hs"),

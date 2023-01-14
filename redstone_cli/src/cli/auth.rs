@@ -1,9 +1,9 @@
 use std::io::Write;
 
 use redstone_common::{
-    web::api::{jar::get_jar, AuthRequest},
     config::store_cookies,
     model::{api::Endpoints, RedstoneError, Result},
+    web::api::{jar::get_jar, AuthRequest},
 };
 
 pub fn run_auth_cmd() -> Result<()> {

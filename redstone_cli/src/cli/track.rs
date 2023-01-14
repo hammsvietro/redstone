@@ -31,6 +31,10 @@ pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
 
     let mut conn = stablish_connection()?;
     let received_message = send_and_receive(&mut conn, request)?;
+    if received_message.has_errors() {
+        let error = IpcMessageResponse::from(received_message).error.unwrap();
+        return Err(error);
+    }
     let confirmation_request: ConfirmationRequest = ConfirmationRequest::from(received_message);
     let confirmation_response = handle_confirmation_request(&confirmation_request)?;
     if !confirmation_response.keep_connection {
