@@ -108,8 +108,6 @@ impl Display for RedstoneError {
     }
 }
 
-pub type Result<T> = std::result::Result<T, RedstoneError>;
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ArgumentError {
     InvalidPath(String),
@@ -125,3 +123,5 @@ impl Display for ArgumentError {
         write!(f, "{}", error)
     }
 }
+
+pub type Result<T> = std::result::Result<T, RedstoneError>;

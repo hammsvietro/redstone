@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use redstone_common::{
     model::{
         api::File,
-        tcp::{
-            CheckFileMessageFactory, CommitMessageFactory, FileUploadMessageFactory, TcpMessage,
-            TcpMessageResponse, TcpMessageResponseStatus,
-        },
+        tcp::{TcpMessage, TcpMessageResponse, TcpMessageResponseStatus},
         RedstoneError, Result,
     },
-    web::tcp::{receive_message, send_message},
+    web::tcp::{
+        receive_message, send_message, CheckFileMessageFactory, CommitMessageFactory,
+        FileUploadMessageFactory,
+    },
 };
 
 use tokio::{io::BufReader, net::TcpStream, sync::mpsc::UnboundedSender};
