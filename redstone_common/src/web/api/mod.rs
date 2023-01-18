@@ -2,7 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::model::{RedstoneError, Result};
 
-use reqwest::{cookie::Jar, Url};
+use async_trait::async_trait;
+use reqwest::{cookie::Jar, Method, Url};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub mod jar;
 
@@ -24,22 +25,145 @@ impl AuthRequest {
     }
 }
 
-const API_BASE_URL: &'static str = "http://localhost:4000";
+const API_BASE_URL: &'static str = "http://localhost:4000"; // TODO: Change this
+
+//
+// NON-BLOCKING
+//
+
+#[async_trait]
+pub trait HttpSend {
+    async fn send(&self, request: reqwest::RequestBuilder) -> Result<reqwest::Response>;
+}
+
+pub struct Sender;
+
+#[async_trait]
+impl HttpSend for Sender {
+    async fn send(&self, request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
+        Ok(request.send().await?)
+    }
+}
+
+pub struct RedstoneClient<S: HttpSend = Sender> {
+    pub jar: Arc<Jar>,
+    client: reqwest::Client,
+    sender: S,
+}
+
+impl RedstoneClient<Sender> {
+    pub fn new(jar: Arc<Jar>) -> Self {
+        Self {
+            client: get_http_client(jar.clone()),
+            jar,
+            sender: Sender,
+        }
+    }
+    pub async fn send_json<T>(
+        &self,
+        method: Method,
+        url: Url,
+        body: &Option<T>,
+    ) -> Result<reqwest::Response>
+    where
+        T: Serialize,
+    {
+        let mut request = self.client.request(method, url);
+        if let Some(body) = body {
+            request = request.json(body);
+        }
+        Ok(self.sender.send(request).await?)
+    }
+}
+
+impl<S: HttpSend> RedstoneClient<S> {
+    pub fn with_sender(sender: S, jar: Arc<Jar>) -> Self {
+        Self {
+            client: get_http_client(jar.clone()),
+            jar,
+            sender,
+        }
+    }
+}
+
+//
+// BLOCKING
+//
+
+pub trait BlockingHttpSend {
+    fn send(
+        &self,
+        request: reqwest::blocking::RequestBuilder,
+    ) -> Result<reqwest::blocking::Response>;
+}
+
+pub struct BlockingSender;
+
+impl BlockingHttpSend for BlockingSender {
+    fn send(
+        &self,
+        request: reqwest::blocking::RequestBuilder,
+    ) -> Result<reqwest::blocking::Response> {
+        Ok(request.send()?)
+    }
+}
+
+pub struct RedstoneBlockingClient<S: BlockingHttpSend = BlockingSender> {
+    pub jar: Arc<Jar>,
+    client: reqwest::blocking::Client,
+    sender: S,
+}
+
+impl<S: BlockingHttpSend> RedstoneBlockingClient<S> {
+    pub fn with_sender(sender: S, jar: Arc<Jar>) -> Self {
+        Self {
+            client: get_blocking_http_client(jar.clone()),
+            jar,
+            sender,
+        }
+    }
+
+    pub fn send_json<T>(
+        &self,
+        method: Method,
+        url: Url,
+        body: &Option<T>,
+    ) -> Result<reqwest::blocking::Response>
+    where
+        T: Serialize,
+    {
+        let mut request = self.client.request(method, url);
+        if let Some(body) = body {
+            request = request.json(body);
+        }
+        Ok(self.sender.send(request)?)
+    }
+}
+
+impl RedstoneBlockingClient<BlockingSender> {
+    pub fn new(jar: Arc<Jar>) -> Self {
+        Self {
+            client: get_blocking_http_client(jar.clone()),
+            jar,
+            sender: BlockingSender,
+        }
+    }
+}
 
 pub fn get_api_base_url() -> Url {
     API_BASE_URL.parse().unwrap()
 }
 
-pub fn get_http_client(cookie_jar: Arc<Jar>) -> reqwest::Client {
-    reqwest::ClientBuilder::new()
+fn get_blocking_http_client(cookie_jar: Arc<Jar>) -> reqwest::blocking::Client {
+    reqwest::blocking::ClientBuilder::new()
         .cookie_store(true)
-        .cookie_provider(cookie_jar.clone())
+        .cookie_provider(cookie_jar)
         .build()
         .unwrap()
 }
 
-pub fn get_blocking_http_client(cookie_jar: Arc<Jar>) -> reqwest::blocking::Client {
-    reqwest::blocking::ClientBuilder::new()
+fn get_http_client(cookie_jar: Arc<Jar>) -> reqwest::Client {
+    reqwest::ClientBuilder::new()
         .cookie_store(true)
         .cookie_provider(cookie_jar.clone())
         .build()

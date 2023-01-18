@@ -8,8 +8,9 @@ use redstone_common::{
         track::{TrackMessageResponse, TrackRequest},
         RedstoneError, Result,
     },
-    web::api::{get_http_client, handle_response, jar::get_jar},
+    web::api::{handle_response, jar::get_jar, RedstoneClient},
 };
+use reqwest::Method;
 use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
@@ -112,11 +113,11 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
 }
 
 async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBackupResponse> {
-    let cookie_jar = get_jar().unwrap();
-    let response = get_http_client(cookie_jar)
-        .post(Endpoints::Declare.get_url())
-        .json(&request)
-        .send()
+    let cookie_jar = get_jar()?;
+    let client = RedstoneClient::new(cookie_jar);
+
+    let response = client
+        .send_json(Method::POST, Endpoints::Declare.get_url(), &Some(request))
         .await?;
 
     handle_response(response).await

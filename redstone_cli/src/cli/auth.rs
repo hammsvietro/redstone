@@ -3,22 +3,20 @@ use std::io::Write;
 use redstone_common::{
     config::store_cookies,
     model::{api::Endpoints, RedstoneError, Result},
-    web::api::{jar::get_jar, AuthRequest},
+    web::api::{jar::get_jar, AuthRequest, RedstoneBlockingClient},
 };
+use reqwest::Method;
 
 pub fn run_auth_cmd() -> Result<()> {
     let auth_request = prompt_credentials()?;
     let cookie_jar = get_jar()?;
 
-    let client = reqwest::blocking::ClientBuilder::new()
-        .cookie_store(true)
-        .cookie_provider(cookie_jar.clone())
-        .build()
-        .unwrap();
-    let res = client
-        .post(Endpoints::Login.get_url())
-        .json(&auth_request)
-        .send()?;
+    let client = RedstoneBlockingClient::new(cookie_jar.clone());
+    let res = client.send_json(
+        Method::POST,
+        Endpoints::Login.get_url(),
+        &Some(auth_request),
+    )?;
 
     if res.status() != reqwest::StatusCode::OK {
         return Err(RedstoneError::BaseError(String::from(
