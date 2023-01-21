@@ -17,8 +17,3 @@ pub fn get_jar() -> Result<Arc<Jar>> {
     }
     Ok(Arc::new(jar))
 }
-
-pub fn set_cookie(jar: Arc<Jar>, cookie: &str) -> () {
-    let url = &get_api_base_url();
-    jar.add_cookie_str(cookie, url);
-}

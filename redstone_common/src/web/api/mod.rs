@@ -25,7 +25,7 @@ impl AuthRequest {
     }
 }
 
-const API_BASE_URL: &'static str = "http://localhost:4000"; // TODO: Change this
+const API_BASE_URL: &'static str = "http://127.0.0.1:4000"; // TODO: Change this
 
 //
 // NON-BLOCKING
@@ -33,14 +33,14 @@ const API_BASE_URL: &'static str = "http://localhost:4000"; // TODO: Change this
 
 #[async_trait]
 pub trait HttpSend {
-    async fn send(&self, request: reqwest::RequestBuilder) -> Result<reqwest::Response>;
+    async fn send(&self, request: reqwest::RequestBuilder, client: &reqwest::Client) -> Result<reqwest::Response>;
 }
 
 pub struct Sender;
 
 #[async_trait]
 impl HttpSend for Sender {
-    async fn send(&self, request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
+    async fn send(&self, request: reqwest::RequestBuilder, _client: &reqwest::Client) -> Result<reqwest::Response> {
         Ok(request.send().await?)
     }
 }
@@ -59,7 +59,7 @@ impl RedstoneClient<Sender> {
             sender: Sender,
         }
     }
-    pub async fn send_json<T>(
+    pub async fn send<T>(
         &self,
         method: Method,
         url: Url,
@@ -72,7 +72,7 @@ impl RedstoneClient<Sender> {
         if let Some(body) = body {
             request = request.json(body);
         }
-        Ok(self.sender.send(request).await?)
+        Ok(self.sender.send(request, &self.client).await?)
     }
 }
 
@@ -94,6 +94,7 @@ pub trait BlockingHttpSend {
     fn send(
         &self,
         request: reqwest::blocking::RequestBuilder,
+        client: &reqwest::blocking::Client
     ) -> Result<reqwest::blocking::Response>;
 }
 
@@ -103,6 +104,7 @@ impl BlockingHttpSend for BlockingSender {
     fn send(
         &self,
         request: reqwest::blocking::RequestBuilder,
+        _client: &reqwest::blocking::Client
     ) -> Result<reqwest::blocking::Response> {
         Ok(request.send()?)
     }
@@ -123,7 +125,7 @@ impl<S: BlockingHttpSend> RedstoneBlockingClient<S> {
         }
     }
 
-    pub fn send_json<T>(
+    pub fn send<T>(
         &self,
         method: Method,
         url: Url,
@@ -136,7 +138,7 @@ impl<S: BlockingHttpSend> RedstoneBlockingClient<S> {
         if let Some(body) = body {
             request = request.json(body);
         }
-        Ok(self.sender.send(request)?)
+        Ok(self.sender.send(request, &self.client)?)
     }
 }
 

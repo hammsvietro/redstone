@@ -1,0 +1,7 @@
+{
+  "rust-analyzer.linkedProjects": [
+    "../redstone_cli/Cargo.toml",
+    "../redstone_common/Cargo.toml",
+    "../redstone_service/Cargo.toml"
+  ]
+}

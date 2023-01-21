@@ -46,7 +46,6 @@ pub async fn handle_track_msg(
             Err(err) => return Err(err),
         };
     if !confirmation_result.has_accepted {
-        println!("not accepted");
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: None,
@@ -117,7 +116,7 @@ async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBac
     let client = RedstoneClient::new(cookie_jar);
 
     let response = client
-        .send_json(Method::POST, Endpoints::Declare.get_url(), &Some(request))
+        .send(Method::POST, Endpoints::Declare.get_url(), &Some(request))
         .await?;
 
     handle_response(response).await
