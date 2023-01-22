@@ -17,11 +17,9 @@ use redstone_common::{
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    ipc::{
-        track::handle_track_msg,
-        clone::handle_clone_msg 
-    },
-    scheduler::UpdateJob};
+    ipc::{clone::handle_clone_msg, track::handle_track_msg},
+    scheduler::UpdateJob,
+};
 
 pub async fn run_socket_loop(new_job_sender: UnboundedSender<UpdateJob>) -> Result<()> {
     let listener = LocalSocketListener::bind(IPC_SOCKET_PATH)?;
@@ -110,7 +108,7 @@ async fn handle_message(
         }
         IpcMessageRequestType::CloneRequest(mut clone_request) => {
             handle_clone_msg(connection.borrow_mut(), &mut clone_request).await
-        },
+        }
         _ => unreachable!(),
     }
 }

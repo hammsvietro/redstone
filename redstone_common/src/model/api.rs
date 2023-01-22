@@ -8,6 +8,7 @@ use super::fs_tree::RSFile;
 
 pub enum Endpoints {
     Declare,
+    Clone,
     Login,
 }
 
@@ -15,6 +16,7 @@ impl Endpoints {
     pub fn get_url(&self) -> Url {
         let base_url = get_api_base_url();
         let sufix = match *self {
+            Self::Clone => "/api/download/clone",
             Self::Declare => "/api/upload/declare",
             Self::Login => "/api/login",
         };
@@ -41,6 +43,18 @@ impl<'a> DeclareBackupRequest<'a> {
         Self { name, root, files }
     }
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct CloneRequest {
+    pub backup_name: String
+}
+
+impl CloneRequest {
+    pub fn new(backup_name: String) -> Self {
+        Self { backup_name }
+    }
+}
+
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct DeclareBackupResponse {
