@@ -2,11 +2,11 @@ use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
         api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
-        backup::IndexFile,
+        backup::{IndexFile, get_index_file_for_path},
         fs_tree::FSTree,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
-        track::{TrackMessageResponse, TrackRequest},
-        RedstoneError, Result,
+        ipc::track::{TrackMessageResponse, TrackRequest},
+        RedstoneError, Result, DomainError,
     },
     web::api::{handle_response, jar::get_jar, RedstoneClient},
 };
@@ -26,13 +26,12 @@ pub async fn handle_track_msg(
         data: String::from("=)"),
     };
     let fs_tree = FSTree::build(track_request.base_path.clone(), None)?;
-    let index_file_path = fs_tree.get_index_file_for_root();
+    let index_file_path = get_index_file_for_path(&fs_tree.root);
     if index_file_path.exists() {
+        let path = fs_tree.root.to_str().unwrap().into();
         return wrap(IpcMessageResponse {
             keep_connection: false,
-            error: Some(RedstoneError::BaseError(String::from(
-                "Directory specified is already being tracked",
-            ))),
+            error: Some(RedstoneError::DomainError(DomainError::DirectoryAlreadyBeingTracked(path))),
             message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
         });
     }

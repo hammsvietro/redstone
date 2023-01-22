@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
 use super::{
     api::{Backup, DeclareBackupResponse, Update},
-    track::TrackRequest,
+    ipc::track::TrackRequest,
 };
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +26,7 @@ impl IndexFile {
             config: BackupConfig {
                 sync_every: track_request.sync_every.clone(),
                 watch: track_request.watch,
-                entrypoint: String::from(track_request.base_path.to_str().unwrap()),
+                entrypoint: track_request.base_path.to_str().unwrap().into(),
             },
             current_update: declare_response.update,
         }
@@ -36,4 +38,11 @@ pub struct BackupConfig {
     pub sync_every: Option<String>,
     pub watch: bool,
     pub entrypoint: String,
+}
+
+pub fn get_index_file_for_path(path: &PathBuf) -> PathBuf {
+    let mut path = path.clone();
+    path.push(".rs");
+    path.push("index");
+    path
 }

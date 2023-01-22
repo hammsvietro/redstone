@@ -66,11 +66,6 @@ impl FSTree {
 
         Ok(fs_tree)
     }
-    pub fn get_index_file_for_root(&self) -> PathBuf {
-        let mut path = self.root.clone();
-        to_index_path(&mut path);
-        path
-    }
 
     pub fn get_first_depth(&self) -> Vec<&RSFile> {
         let mut items: Vec<&RSFile> = self.files.iter().filter(|item| item.depth <= 1).collect();
@@ -81,11 +76,6 @@ impl FSTree {
     pub fn total_size(&self) -> u64 {
         self.files.iter().map(|file| file.size).sum()
     }
-}
-
-pub fn to_index_path(path: &mut PathBuf) {
-    path.push(".rs");
-    path.push("index");
 }
 
 fn read_dir(
