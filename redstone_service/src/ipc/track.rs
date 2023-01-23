@@ -22,9 +22,6 @@ pub async fn handle_track_msg(
     connection: &mut LocalSocketStream,
     track_request: &mut TrackRequest,
 ) -> Result<IpcMessage> {
-    let message = TrackMessageResponse {
-        data: String::from("=)"),
-    };
     let fs_tree = FSTree::build(track_request.base_path.clone(), None)?;
     let index_file_path = get_index_file_for_path(&fs_tree.root);
     if index_file_path.exists() {
@@ -34,7 +31,7 @@ pub async fn handle_track_msg(
             error: Some(RedstoneError::DomainError(
                 DomainError::DirectoryAlreadyBeingTracked(path),
             )),
-            message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
+            message: None,
         });
     }
 
@@ -50,7 +47,7 @@ pub async fn handle_track_msg(
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: None,
-            message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
+            message: None,
         });
     }
 
@@ -64,7 +61,7 @@ pub async fn handle_track_msg(
     let (_, _) = tokio::join!(
         send_progress(&mut rx, total_size),
         send_files(
-            &declare_response.backup.files,
+            &declare_response.files,
             &declare_response.upload_token,
             root_folder,
             tx
@@ -78,7 +75,7 @@ pub async fn handle_track_msg(
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
-        message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
+        message: None,
     })
 }
 

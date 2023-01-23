@@ -49,6 +49,15 @@ pub struct CloneRequest {
     pub backup_name: String
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct CloneResponse {
+    pub backup: Backup,
+    pub files_to_download: Vec<File>,
+    pub download_token: String,
+    pub update: Update,
+    pub total_bytes: usize
+}
+
 impl CloneRequest {
     pub fn new(backup_name: String) -> Self {
         Self { backup_name }
@@ -59,6 +68,7 @@ impl CloneRequest {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct DeclareBackupResponse {
     pub backup: Backup,
+    pub files: Vec<File>,
     pub update: Update,
     pub upload_token: String,
 }
@@ -70,7 +80,6 @@ pub struct Backup {
     pub id: String,
     pub name: String,
     pub entrypoint: String,
-    pub files: Vec<File>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -78,12 +87,6 @@ pub struct File {
     pub id: String,
     pub path: String,
     pub sha256_checksum: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ServerToken {
-    pub id: String,
-    pub token: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
