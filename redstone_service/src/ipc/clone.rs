@@ -1,14 +1,16 @@
-use std::borrow::BorrowMut;
+use std::{borrow::BorrowMut, path::PathBuf};
 
 use interprocess::local_socket::LocalSocketStream;
 
 use redstone_common::{
     model::{
-        api::{CloneRequest as ApiCloneRequest, Endpoints, CloneResponse},
-        ipc::{clone::CloneRequest, IpcMessage, IpcMessageResponse, ConfirmationRequest},
+        api::{CloneRequest as ApiCloneRequest, CloneResponse, Endpoints, File},
+        fs_tree::{FSTree, RSFile},
+        ipc::{clone::CloneRequest, ConfirmationRequest, IpcMessage, IpcMessageResponse},
         Result,
     },
-    web::api::{jar::get_jar, RedstoneClient}, util::bytes_to_human_readable,
+    util::bytes_to_human_readable,
+    web::api::{jar::get_jar, RedstoneClient},
 };
 use reqwest::Method;
 
@@ -27,8 +29,10 @@ pub async fn handle_clone_msg(
 
     let clone_response: CloneResponse = response.json().await?;
 
+    let conflicting_files =
+        get_conflicting_files(&clone_request.path, &clone_response.files_to_download)?;
     let confirmation_request = ConfirmationRequest {
-        message: get_confirmation_request_message(clone_response.total_bytes)
+        message: get_confirmation_request_message(conflicting_files, clone_response.total_bytes),
     };
     let confirmation_result =
         match prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await {
@@ -40,21 +44,39 @@ pub async fn handle_clone_msg(
             message: None,
             keep_connection: false,
             error: None,
-            }.into()
-        );
+        }
+        .into());
     }
-
 
     Ok(IpcMessageResponse {
         message: None,
         keep_connection: false,
         error: None,
-    }.into())
+    }
+    .into())
 }
 
-fn get_confirmation_request_message(total_bytes: usize) -> String {
+fn get_conflicting_files(path: &PathBuf, api_files: &Vec<File>) -> Result<Vec<RSFile>> {
+    let fs_tree = FSTree::build(path.clone(), None)?;
+    let api_file_paths: Vec<String> = api_files.iter().map(|file| file.path.clone()).collect();
+    Ok(fs_tree.get_conflicting_files(api_file_paths))
+}
+
+fn get_confirmation_request_message(conflicting_files: Vec<RSFile>, total_bytes: usize) -> String {
     let readable_bytes = bytes_to_human_readable(total_bytes);
-    let mut message = format!("\nBy continuing, you will download {} of data", readable_bytes);
+    let mut message = format!(
+        "\nBy continuing, you will download {} of data",
+        readable_bytes
+    );
+    conflicting_files
+        .iter()
+        .enumerate()
+        .for_each(|(idx, file)| {
+            if idx == 0 {
+                message += "The following files will be overwritten:\n";
+            }
+            message += &format!("{}\n", file.path);
+        });
     message += "\nDo you wish to continue?";
     message
 }

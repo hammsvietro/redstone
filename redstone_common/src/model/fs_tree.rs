@@ -76,6 +76,15 @@ impl FSTree {
     pub fn total_size(&self) -> u64 {
         self.files.iter().map(|file| file.size).sum()
     }
+
+    pub fn get_conflicting_files(&self, file_paths: Vec<String>) -> Vec<RSFile> {
+        let conflicting_files = self.files
+            .iter()
+            .filter(|file| file_paths.contains(&file.path.to_string()))
+            .map(|file| file.clone())
+            .collect();
+        conflicting_files
+    }
 }
 
 fn read_dir(
@@ -124,6 +133,8 @@ fn read_dir(
     }
     return Ok(file_tree_items);
 }
+
+
 fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
     let suffix = match root.ends_with("/") {
         true => String::from(root),

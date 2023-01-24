@@ -4,7 +4,7 @@ use redstone_common::{
         api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
         backup::{get_index_file_for_path, IndexFile},
         fs_tree::FSTree,
-        ipc::track::{TrackMessageResponse, TrackRequest},
+        ipc::track::TrackRequest,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
         DomainError, RedstoneError, Result,
     },
