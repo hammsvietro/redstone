@@ -1,8 +1,8 @@
-pub mod track;
 pub mod clone;
+pub mod track;
 
-use self::track::{TrackMessageResponse, TrackRequest};
 use self::clone::CloneRequest;
+use self::track::{TrackMessageResponse, TrackRequest};
 use super::RedstoneError;
 
 use serde::{Deserialize, Serialize};

@@ -78,7 +78,8 @@ impl FSTree {
     }
 
     pub fn get_conflicting_files(&self, file_paths: Vec<String>) -> Vec<RSFile> {
-        let conflicting_files = self.files
+        let conflicting_files = self
+            .files
             .iter()
             .filter(|file| file_paths.contains(&file.path.to_string()))
             .map(|file| file.clone())
@@ -133,7 +134,6 @@ fn read_dir(
     }
     return Ok(file_tree_items);
 }
-
 
 fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
     let suffix = match root.ends_with("/") {

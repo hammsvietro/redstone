@@ -1,11 +1,11 @@
 use std::{env::current_dir, path::PathBuf, str::FromStr};
 
 use redstone_common::model::{
+    ipc::track::TrackRequest,
     ipc::{
         ConfirmationRequest, IpcMessage, IpcMessageRequest, IpcMessageRequestType,
         IpcMessageResponse,
     },
-    ipc::track::TrackRequest,
     RedstoneError, Result,
 };
 

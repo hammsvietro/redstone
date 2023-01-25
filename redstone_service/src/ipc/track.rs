@@ -2,10 +2,10 @@ use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
         api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
-        backup::{get_index_file_for_path, IndexFile},
+        backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::FSTree,
         ipc::track::TrackRequest,
-        ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
+        ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse},
         DomainError, RedstoneError, Result,
     },
     web::api::{handle_response, jar::get_jar, RedstoneClient},
@@ -127,10 +127,16 @@ fn create_files(
 ) -> Result<IndexFile> {
     let parent_folders = index_file_path.parent();
     if let Some(folder_path) = parent_folders {
-        std::fs::create_dir_all(folder_path).unwrap();
+        std::fs::create_dir_all(folder_path)?;
     }
-    let mut index_file = std::fs::File::create(index_file_path).unwrap();
-    let index_file_content = IndexFile::new(declare_response, track_request);
-    index_file.write_all(&bincode::serialize(&index_file_content).unwrap())?;
+    let mut index_file = std::fs::File::create(index_file_path)?;
+    let config = BackupConfig::new(track_request.sync_every.clone(), track_request.watch);
+    let index_file_content = IndexFile::new(
+        declare_response.backup,
+        declare_response.update.clone(),
+        declare_response.update,
+        config,
+    );
+    index_file.write_all(&bincode::serialize(&index_file_content)?)?;
     Ok(index_file_content)
 }

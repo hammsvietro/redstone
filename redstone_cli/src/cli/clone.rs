@@ -1,8 +1,18 @@
 use std::env::current_dir;
 
-use redstone_common::model::{Result, backup::get_index_file_for_path, RedstoneError, DomainError, ipc::{IpcMessageRequestType, IpcMessage, IpcMessageRequest, clone::CloneRequest, IpcMessageResponse, ConfirmationRequest}};
+use redstone_common::model::{
+    backup::get_index_file_for_path,
+    ipc::{
+        clone::CloneRequest, ConfirmationRequest, IpcMessage, IpcMessageRequest,
+        IpcMessageRequestType, IpcMessageResponse,
+    },
+    DomainError, RedstoneError, Result,
+};
 
-use crate::{ipc::socket::{stablish_connection, send_and_receive}, utils::handle_confirmation_request};
+use crate::{
+    ipc::socket::{send_and_receive, stablish_connection},
+    utils::handle_confirmation_request,
+};
 
 use super::models::CloneArgs;
 
@@ -12,11 +22,13 @@ pub fn run_clone_cmd(clone_args: CloneArgs) -> Result<()> {
     let index_file_path = get_index_file_for_path(&path);
     if index_file_path.exists() {
         let path = path.to_str().unwrap().into();
-        return Err(RedstoneError::DomainError(DomainError::DirectoryAlreadyBeingTracked(path)))
+        return Err(RedstoneError::DomainError(
+            DomainError::DirectoryAlreadyBeingTracked(path),
+        ));
     }
 
     let request = IpcMessage::Request(IpcMessageRequest {
-        message: IpcMessageRequestType::CloneRequest(CloneRequest { path, backup_name })
+        message: IpcMessageRequestType::CloneRequest(CloneRequest { path, backup_name }),
     });
 
     let mut connection = stablish_connection()?;
@@ -33,10 +45,11 @@ pub fn run_clone_cmd(clone_args: CloneArgs) -> Result<()> {
         }
         return Ok(());
     }
-    let received_message = send_and_receive(&mut connection, IpcMessage::from(confirmation_response));
+    let received_message =
+        send_and_receive(&mut connection, IpcMessage::from(confirmation_response));
     if let Err(err) = received_message {
         return Err(err);
     }
-    
+
     Ok(())
 }

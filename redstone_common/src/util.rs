@@ -34,4 +34,3 @@ pub fn bytes_to_human_readable(bytes: usize) -> String {
     }
     format!("{:.2} {}", bytes, units[unit])
 }
-

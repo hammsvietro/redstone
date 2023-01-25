@@ -1,7 +1,7 @@
 mod auth;
+mod clone;
 pub mod models;
 mod track;
-mod clone;
 
 use clap::Parser;
 use models::{Cli, Commands};
@@ -14,6 +14,6 @@ pub fn input() -> redstone_common::model::Result<()> {
     match args.command {
         Commands::Auth => auth::run_auth_cmd(client),
         Commands::Track(track_args) => track::run_track_cmd(track_args),
-        Commands::Clone(clone_args) => clone::run_clone_cmd(clone_args)
+        Commands::Clone(clone_args) => clone::run_clone_cmd(clone_args),
     }
 }

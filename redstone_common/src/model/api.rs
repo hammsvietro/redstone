@@ -46,7 +46,7 @@ impl<'a> DeclareBackupRequest<'a> {
 
 #[derive(Deserialize, Serialize)]
 pub struct CloneRequest {
-    pub backup_name: String
+    pub backup_name: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -55,7 +55,7 @@ pub struct CloneResponse {
     pub files_to_download: Vec<File>,
     pub download_token: String,
     pub update: Update,
-    pub total_bytes: usize
+    pub total_bytes: usize,
 }
 
 impl CloneRequest {
@@ -64,8 +64,7 @@ impl CloneRequest {
     }
 }
 
-
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct DeclareBackupResponse {
     pub backup: Backup,
     pub files: Vec<File>,
@@ -75,21 +74,21 @@ pub struct DeclareBackupResponse {
 
 /* SERVER ENTITIES */
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Backup {
     pub id: String,
     pub name: String,
     pub entrypoint: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct File {
     pub id: String,
     pub path: String,
     pub sha256_checksum: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Update {
     hash: String,
     message: String,

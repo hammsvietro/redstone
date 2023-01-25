@@ -34,7 +34,6 @@ pub fn get_home_dir() -> Result<PathBuf> {
     dirs::home_dir().ok_or(RedstoneError::NoHomeDir)
 }
 
-
 #[cfg(feature = "testing")]
 pub fn get_auth_dir() -> Result<PathBuf> {
     let mut dir = std::env::temp_dir();
@@ -57,8 +56,6 @@ pub fn get_auth_dir() -> Result<PathBuf> {
     Ok(home_dir)
 }
 
-
-
 pub fn get_auth_data() -> Result<Option<AuthData>> {
     let auth_dir = get_auth_dir()?;
     let content = std::fs::read_to_string(auth_dir)?;
@@ -70,10 +67,7 @@ pub fn get_auth_data() -> Result<Option<AuthData>> {
 
 pub fn store_cookies(cookie_jar: Arc<Jar>) -> Result<()> {
     let base_url = get_api_base_url();
-    let auth_data = String::from(
-        cookie_jar.cookies(&base_url).unwrap()
-        .to_str().unwrap()
-    );
+    let auth_data = String::from(cookie_jar.cookies(&base_url).unwrap().to_str().unwrap());
     let data = bincode::serialize(&Some(AuthData::new(auth_data))).unwrap();
 
     std::fs::write(get_auth_dir()?, data).unwrap();

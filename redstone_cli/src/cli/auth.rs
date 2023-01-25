@@ -1,9 +1,9 @@
 use std::io::Write;
- 
+
 use redstone_common::{
     config::store_cookies,
     model::{api::Endpoints, RedstoneError, Result},
-    web::api::{AuthRequest, RedstoneBlockingClient, BlockingHttpSend},
+    web::api::{AuthRequest, BlockingHttpSend, RedstoneBlockingClient},
 };
 use reqwest::Method;
 
@@ -12,7 +12,10 @@ pub fn run_auth_cmd(client: RedstoneBlockingClient) -> Result<()> {
     Ok(login(auth_request, client)?)
 }
 
-fn login<S : BlockingHttpSend>(auth_request: AuthRequest, client: RedstoneBlockingClient<S>) -> Result<()> {
+fn login<S: BlockingHttpSend>(
+    auth_request: AuthRequest,
+    client: RedstoneBlockingClient<S>,
+) -> Result<()> {
     let res = client.send(
         Method::POST,
         Endpoints::Login.get_url(),
@@ -45,9 +48,12 @@ fn prompt_credentials() -> Result<AuthRequest> {
 mod tests {
     use std::sync::Arc;
 
-    use redstone_common::{web::api::BlockingHttpSend, config::{get_auth_data, get_auth_dir}};
-    use reqwest::cookie::Jar;
     use httpmock::prelude::*;
+    use redstone_common::{
+        config::{get_auth_data, get_auth_dir},
+        web::api::BlockingHttpSend,
+    };
+    use reqwest::cookie::Jar;
 
     use super::*;
 
@@ -66,10 +72,10 @@ mod tests {
 
     impl BlockingHttpSend for AuthMockSender {
         fn send(
-                &self,
-                _request: reqwest::blocking::RequestBuilder,
-                client: &reqwest::blocking::Client
-            ) -> Result<reqwest::blocking::Response> {
+            &self,
+            _request: reqwest::blocking::RequestBuilder,
+            client: &reqwest::blocking::Client,
+        ) -> Result<reqwest::blocking::Response> {
             let server = MockServer::start();
             if self.is_success {
                 let api_mock = server.mock(|when, then| {
@@ -85,31 +91,36 @@ mod tests {
                         .header("x-request-id", "FzwUroJxKFMJv6MAAAmB")
                         .header("server", "Cowboy");
                 });
-                let response = client.request(Method::POST, server.url("/api/auth")).send()?;
+                let response = client
+                    .request(Method::POST, server.url("/api/auth"))
+                    .send()?;
                 api_mock.assert();
                 Ok(response)
             } else {
                 let api_mock = server.mock(|when, then| {
-                    when.method(POST)
-                        .path("/api/auth");
-                    then.status(401)
-                        .header("content-type", "text/html");
+                    when.method(POST).path("/api/auth");
+                    then.status(401).header("content-type", "text/html");
                 });
-                
-                let response = client.request(Method::POST, server.url("/api/auth")).send()?;
+
+                let response = client
+                    .request(Method::POST, server.url("/api/auth"))
+                    .send()?;
                 api_mock.assert();
-                return Ok(response)
+                return Ok(response);
             }
         }
     }
 
     #[test]
     fn should_throw_an_error_when_login_is_incorrect() {
-        let sender = AuthMockSender {is_success: false};
+        let sender = AuthMockSender { is_success: false };
         let jar = Arc::new(Jar::default());
         let client = RedstoneBlockingClient::with_sender(sender, jar);
 
-        let auth_request = AuthRequest {email: "test@test.com".into(), password: "123123123123".into()};
+        let auth_request = AuthRequest {
+            email: "test@test.com".into(),
+            password: "123123123123".into(),
+        };
 
         let result = login(auth_request, client);
 
@@ -118,11 +129,14 @@ mod tests {
 
     #[test]
     fn should_save_cookies() {
-        let sender = AuthMockSender {is_success: true};
+        let sender = AuthMockSender { is_success: true };
         let jar = Arc::new(Jar::default());
         let client = RedstoneBlockingClient::with_sender(sender, jar);
 
-        let auth_request = AuthRequest {email: "test@test.com".into(), password: "123123123123".into()};
+        let auth_request = AuthRequest {
+            email: "test@test.com".into(),
+            password: "123123123123".into(),
+        };
 
         let result = login(auth_request, client);
 
