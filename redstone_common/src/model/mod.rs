@@ -10,7 +10,6 @@ pub mod config;
 pub mod fs_tree;
 pub mod ipc;
 pub mod tcp;
-pub mod track;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RedstoneError {
@@ -19,6 +18,7 @@ pub enum RedstoneError {
     BaseError(String),
     ConnectionTimeout,
     CronParseError(String),
+    DomainError(DomainError),
     FolderOrFileNotFound(String),
     HttpError(String),
     IOError(String),
@@ -88,6 +88,7 @@ impl Display for RedstoneError {
             Self::ApiError(error) => error.stringified_errors.to_owned(),
             Self::BaseError(error) => error.to_owned(),
             Self::ArgumentError(error) => error.to_string(),
+            Self::DomainError(error) => error.to_string(),
             Self::ConnectionTimeout => String::from("Connection timed out."),
             Self::CronParseError(cron) => format!("Couldn't parse cron string: {cron}"),
             Self::IOError(reason) => format!("{reason}"),
@@ -119,6 +120,22 @@ impl Display for ArgumentError {
         let error: String = match self {
             Self::InvalidPath(path) => format!("Path \"{path}\" is not valid."),
             Self::PathCannotBeAFile(path) => format!("Path \"{path}\" cannot be a file."),
+        };
+        write!(f, "{}", error)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum DomainError {
+    DirectoryAlreadyBeingTracked(String),
+}
+
+impl Display for DomainError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error: String = match self {
+            Self::DirectoryAlreadyBeingTracked(path) => {
+                format!("Directory is already being tracked: \"{path}\"")
+            }
         };
         write!(f, "{}", error)
     }

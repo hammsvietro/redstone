@@ -1,6 +1,6 @@
 /// TCP message models
 use super::Result;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub trait TcpMessage {
     const OPERATION: TcpOperation;
@@ -14,12 +14,22 @@ pub enum TcpOperation {
     UploadChunk,
     Commit,
     CheckFile,
+    DownloadChunk,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct AbortMessage {
     pub upload_token: String,
     pub operation: TcpOperation,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct DownloadChunkMessage {
+    pub download_token: String,
+    pub operation: TcpOperation,
+    pub file_id: String,
+    pub offset: usize,
+    pub byte_limit: usize,
 }
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq)]
@@ -30,8 +40,9 @@ pub enum TcpMessageResponseStatus {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct TcpMessageResponse {
+pub struct TcpMessageResponse<T> {
     pub status: TcpMessageResponseStatus,
+    pub data: Option<T>,
     pub reason: Option<String>,
 }
 

@@ -23,3 +23,14 @@ pub fn generate_sha256_digest(path: &PathBuf) -> Result<String> {
     };
     Ok(HEXLOWER.encode(digest.as_ref()))
 }
+
+pub fn bytes_to_human_readable(bytes: usize) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    let mut bytes = bytes as f64;
+    let mut unit = 0;
+    while bytes >= 1024.0 {
+        bytes /= 1024.0;
+        unit += 1;
+    }
+    format!("{:.2} {}", bytes, units[unit])
+}

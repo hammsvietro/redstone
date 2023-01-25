@@ -8,6 +8,7 @@ use super::fs_tree::RSFile;
 
 pub enum Endpoints {
     Declare,
+    Clone,
     Login,
 }
 
@@ -15,6 +16,7 @@ impl Endpoints {
     pub fn get_url(&self) -> Url {
         let base_url = get_api_base_url();
         let sufix = match *self {
+            Self::Clone => "/api/download/clone",
             Self::Declare => "/api/upload/declare",
             Self::Login => "/api/login",
         };
@@ -42,37 +44,51 @@ impl<'a> DeclareBackupRequest<'a> {
     }
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct CloneRequest {
+    pub backup_name: String,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
+pub struct CloneResponse {
+    pub backup: Backup,
+    pub files_to_download: Vec<File>,
+    pub download_token: String,
+    pub update: Update,
+    pub total_bytes: usize,
+}
+
+impl CloneRequest {
+    pub fn new(backup_name: String) -> Self {
+        Self { backup_name }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct DeclareBackupResponse {
     pub backup: Backup,
+    pub files: Vec<File>,
     pub update: Update,
     pub upload_token: String,
 }
 
 /* SERVER ENTITIES */
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Backup {
     pub id: String,
     pub name: String,
     pub entrypoint: String,
-    pub files: Vec<File>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct File {
     pub id: String,
     pub path: String,
     pub sha256_checksum: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ServerToken {
-    pub id: String,
-    pub token: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Update {
     hash: String,
     message: String,

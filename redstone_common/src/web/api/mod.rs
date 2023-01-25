@@ -33,14 +33,22 @@ const API_BASE_URL: &'static str = "http://127.0.0.1:4000"; // TODO: Change this
 
 #[async_trait]
 pub trait HttpSend {
-    async fn send(&self, request: reqwest::RequestBuilder, client: &reqwest::Client) -> Result<reqwest::Response>;
+    async fn send(
+        &self,
+        request: reqwest::RequestBuilder,
+        client: &reqwest::Client,
+    ) -> Result<reqwest::Response>;
 }
 
 pub struct Sender;
 
 #[async_trait]
 impl HttpSend for Sender {
-    async fn send(&self, request: reqwest::RequestBuilder, _client: &reqwest::Client) -> Result<reqwest::Response> {
+    async fn send(
+        &self,
+        request: reqwest::RequestBuilder,
+        _client: &reqwest::Client,
+    ) -> Result<reqwest::Response> {
         Ok(request.send().await?)
     }
 }
@@ -94,7 +102,7 @@ pub trait BlockingHttpSend {
     fn send(
         &self,
         request: reqwest::blocking::RequestBuilder,
-        client: &reqwest::blocking::Client
+        client: &reqwest::blocking::Client,
     ) -> Result<reqwest::blocking::Response>;
 }
 
@@ -104,7 +112,7 @@ impl BlockingHttpSend for BlockingSender {
     fn send(
         &self,
         request: reqwest::blocking::RequestBuilder,
-        _client: &reqwest::blocking::Client
+        _client: &reqwest::blocking::Client,
     ) -> Result<reqwest::blocking::Response> {
         Ok(request.send()?)
     }

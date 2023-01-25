@@ -66,11 +66,6 @@ impl FSTree {
 
         Ok(fs_tree)
     }
-    pub fn get_index_file_for_root(&self) -> PathBuf {
-        let mut path = self.root.clone();
-        to_index_path(&mut path);
-        path
-    }
 
     pub fn get_first_depth(&self) -> Vec<&RSFile> {
         let mut items: Vec<&RSFile> = self.files.iter().filter(|item| item.depth <= 1).collect();
@@ -81,11 +76,16 @@ impl FSTree {
     pub fn total_size(&self) -> u64 {
         self.files.iter().map(|file| file.size).sum()
     }
-}
 
-pub fn to_index_path(path: &mut PathBuf) {
-    path.push(".rs");
-    path.push("index");
+    pub fn get_conflicting_files(&self, file_paths: Vec<String>) -> Vec<RSFile> {
+        let conflicting_files = self
+            .files
+            .iter()
+            .filter(|file| file_paths.contains(&file.path.to_string()))
+            .map(|file| file.clone())
+            .collect();
+        conflicting_files
+    }
 }
 
 fn read_dir(
@@ -134,6 +134,7 @@ fn read_dir(
     }
     return Ok(file_tree_items);
 }
+
 fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
     let suffix = match root.ends_with("/") {
         true => String::from(root),

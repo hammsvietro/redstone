@@ -2,11 +2,11 @@ use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
         api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
-        backup::IndexFile,
+        backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::FSTree,
-        ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse, IpcMessageResponseType},
-        track::{TrackMessageResponse, TrackRequest},
-        RedstoneError, Result,
+        ipc::track::TrackRequest,
+        ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse},
+        DomainError, RedstoneError, Result,
     },
     web::api::{handle_response, jar::get_jar, RedstoneClient},
 };
@@ -22,18 +22,16 @@ pub async fn handle_track_msg(
     connection: &mut LocalSocketStream,
     track_request: &mut TrackRequest,
 ) -> Result<IpcMessage> {
-    let message = TrackMessageResponse {
-        data: String::from("=)"),
-    };
     let fs_tree = FSTree::build(track_request.base_path.clone(), None)?;
-    let index_file_path = fs_tree.get_index_file_for_root();
+    let index_file_path = get_index_file_for_path(&fs_tree.root);
     if index_file_path.exists() {
+        let path = fs_tree.root.to_str().unwrap().into();
         return wrap(IpcMessageResponse {
             keep_connection: false,
-            error: Some(RedstoneError::BaseError(String::from(
-                "Directory specified is already being tracked",
-            ))),
-            message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
+            error: Some(RedstoneError::DomainError(
+                DomainError::DirectoryAlreadyBeingTracked(path),
+            )),
+            message: None,
         });
     }
 
@@ -49,7 +47,7 @@ pub async fn handle_track_msg(
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: None,
-            message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
+            message: None,
         });
     }
 
@@ -63,7 +61,7 @@ pub async fn handle_track_msg(
     let (_, _) = tokio::join!(
         send_progress(&mut rx, total_size),
         send_files(
-            &declare_response.backup.files,
+            &declare_response.files,
             &declare_response.upload_token,
             root_folder,
             tx
@@ -77,7 +75,7 @@ pub async fn handle_track_msg(
     wrap(IpcMessageResponse {
         keep_connection: false,
         error: None,
-        message: Some(IpcMessageResponseType::TrackMessageResponse(message)),
+        message: None,
     })
 }
 
@@ -129,10 +127,16 @@ fn create_files(
 ) -> Result<IndexFile> {
     let parent_folders = index_file_path.parent();
     if let Some(folder_path) = parent_folders {
-        std::fs::create_dir_all(folder_path).unwrap();
+        std::fs::create_dir_all(folder_path)?;
     }
-    let mut index_file = std::fs::File::create(index_file_path).unwrap();
-    let index_file_content = IndexFile::new(declare_response, track_request);
-    index_file.write_all(&bincode::serialize(&index_file_content).unwrap())?;
+    let mut index_file = std::fs::File::create(index_file_path)?;
+    let config = BackupConfig::new(track_request.sync_every.clone(), track_request.watch);
+    let index_file_content = IndexFile::new(
+        declare_response.backup,
+        declare_response.update.clone(),
+        declare_response.update,
+        config,
+    );
+    index_file.write_all(&bincode::serialize(&index_file_content)?)?;
     Ok(index_file_content)
 }

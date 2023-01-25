@@ -1,5 +1,6 @@
 use redstone_common::constants::IPC_SOCKET_PATH;
 
+pub mod clone;
 pub mod socket_loop;
 pub mod track;
 
