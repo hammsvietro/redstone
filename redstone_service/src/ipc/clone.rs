@@ -1,7 +1,4 @@
-use std::{
-    borrow::BorrowMut,
-    path::PathBuf,
-};
+use std::{borrow::BorrowMut, path::PathBuf};
 
 use interprocess::local_socket::LocalSocketStream;
 

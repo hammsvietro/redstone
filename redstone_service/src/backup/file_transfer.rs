@@ -107,7 +107,7 @@ pub async fn download_files(
         loop {
             let packet = factory.get_tcp_payload()?;
             send_message(&mut stream, &packet).await?;
-            let response: TcpMessageResponse<String> = receive_message(&mut stream).await?;
+            let response: TcpMessageResponse<Vec<u8>> = receive_message(&mut stream).await?;
             if response.data.is_none() {
                 break;
             }
@@ -118,7 +118,7 @@ pub async fn download_files(
                 .create(true)
                 .open(&path)
                 .await?;
-            file.write_all(&data.as_bytes()).await?;
+            file.write_all(&data).await?;
             if data.len() == TCP_FILE_CHUNK_SIZE {
                 break;
             }

@@ -69,6 +69,7 @@ pub struct FileUploadMessageFactory {
     file_size: usize,
     read_bytes: usize,
     pub last_chunk_size: usize,
+    times_sent: usize,
 }
 
 impl FileUploadMessageFactory {
@@ -83,11 +84,12 @@ impl FileUploadMessageFactory {
             file_size: file_size as usize,
             read_bytes: 0,
             last_chunk_size: 0,
+            times_sent: 0,
         }
     }
 
     pub fn has_data_to_fetch(&self) -> bool {
-        self.remaining_bytes_to_read() > 0
+        self.remaining_bytes_to_read() > 0 || (self.file_size == 0 && self.times_sent == 0)
     }
 
     fn remaining_bytes_to_read(&self) -> usize {
@@ -102,6 +104,7 @@ impl FileUploadMessageFactory {
         let mut buffer: Vec<u8> = vec![0; chunk_size];
         file.read_exact(&mut buffer)?;
         self.chunk_offset += 1;
+        self.times_sent += 1;
         self.read_bytes += chunk_size;
         Ok(buffer)
     }
