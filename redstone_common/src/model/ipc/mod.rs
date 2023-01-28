@@ -69,9 +69,9 @@ impl IpcMessageRequest {
     }
 }
 
-impl Into<IpcMessage> for IpcMessageRequest {
-    fn into(self) -> IpcMessage {
-        IpcMessage::Request(self)
+impl From<IpcMessageRequest> for IpcMessage {
+    fn from(val: IpcMessageRequest) -> Self {
+        IpcMessage::Request(val)
     }
 }
 

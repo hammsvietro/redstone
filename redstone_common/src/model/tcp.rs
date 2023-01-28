@@ -1,6 +1,6 @@
 /// TCP message models
 use super::Result;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 pub trait TcpMessage {
     const OPERATION: TcpOperation;

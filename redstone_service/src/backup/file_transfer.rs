@@ -33,7 +33,7 @@ pub async fn send_files(
         let mut retry_count: u8 = 0;
         loop {
             let mut file_upload_message =
-                FileUploadMessageFactory::new(&upload_token, &file, root_folder.clone());
+                FileUploadMessageFactory::new(upload_token, file, root_folder.clone());
             while file_upload_message.has_data_to_fetch() {
                 let packet = file_upload_message.get_tcp_payload()?;
                 send_message(&mut stream, &packet).await?;
@@ -50,7 +50,7 @@ pub async fn send_files(
                 }
             }
             let check_file_message =
-                CheckFileMessageFactory::new(&upload_token, &file.id).get_tcp_payload()?;
+                CheckFileMessageFactory::new(upload_token, &file.id).get_tcp_payload()?;
             println!("Verifying checksum");
             send_message(&mut stream, &check_file_message).await?;
             let response: TcpMessageResponse<()> = receive_message(&mut stream).await?;

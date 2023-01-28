@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
-use super::api::{Backup, Update}
-;
+use super::api::{Backup, Update};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
