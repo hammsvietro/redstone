@@ -105,7 +105,7 @@ impl Display for RedstoneError {
             }
             Self::TokioError(error) => error.to_owned(),
         };
-        write!(f, "{}", error)
+        write!(f, "{error}")
     }
 }
 
@@ -121,7 +121,7 @@ impl Display for ArgumentError {
             Self::InvalidPath(path) => format!("Path \"{path}\" is not valid."),
             Self::PathCannotBeAFile(path) => format!("Path \"{path}\" cannot be a file."),
         };
-        write!(f, "{}", error)
+        write!(f, "{error}")
     }
 }
 
@@ -137,7 +137,7 @@ impl Display for DomainError {
                 format!("Directory is already being tracked: \"{path}\"")
             }
         };
-        write!(f, "{}", error)
+        write!(f, "{error}")
     }
 }
 

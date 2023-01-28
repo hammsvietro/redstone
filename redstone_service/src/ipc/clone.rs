@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, path::PathBuf};
+use std::{borrow::BorrowMut, path::Path};
 
 use interprocess::local_socket::LocalSocketStream;
 
@@ -66,18 +66,15 @@ pub async fn handle_clone_msg(
     .into())
 }
 
-fn get_conflicting_files(path: &PathBuf, api_files: &Vec<File>) -> Result<Vec<RSFile>> {
-    let fs_tree = FSTree::build(path.clone(), None)?;
+fn get_conflicting_files(path: &Path, api_files: &[File]) -> Result<Vec<RSFile>> {
+    let fs_tree = FSTree::build(path.to_path_buf(), None)?;
     let api_file_paths: Vec<String> = api_files.iter().map(|file| file.path.clone()).collect();
     Ok(fs_tree.get_conflicting_files(api_file_paths))
 }
 
 fn get_confirmation_request_message(conflicting_files: Vec<RSFile>, total_bytes: usize) -> String {
     let readable_bytes = bytes_to_human_readable(total_bytes);
-    let mut message = format!(
-        "\nBy continuing, you will download {} of data",
-        readable_bytes
-    );
+    let mut message = format!("\nBy continuing, you will download {readable_bytes} of data");
     conflicting_files
         .iter()
         .enumerate()

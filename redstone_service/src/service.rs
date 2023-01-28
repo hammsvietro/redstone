@@ -12,7 +12,7 @@ pub async fn run_service() -> Result<()> {
     let result = tokio::try_join!(run_socket_loop(tx), run_upload_jobs(&mut rx));
 
     if let Err(err) = result {
-        println!("An error happened: {:?}", err);
+        println!("An error happened: {err:?}");
     }
 
     Ok(())

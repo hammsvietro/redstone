@@ -67,7 +67,7 @@ async fn handle_connection(
             });
 
         if let Err(err) = send_message(connection.borrow_mut(), result_msg.borrow()) {
-            eprintln!("{}", err);
+            eprintln!("{err}");
             break;
         }
         if let IpcMessage::Response(res) = result_msg {
@@ -113,8 +113,8 @@ async fn handle_message(
     }
 }
 
-fn continue_reading_message(error: &Box<bincode::ErrorKind>) -> bool {
-    match &**error {
+fn continue_reading_message(error: &bincode::ErrorKind) -> bool {
+    match error {
         bincode::ErrorKind::Io(io_error) => io_error.kind() == io::ErrorKind::UnexpectedEof,
         _ => false,
     }
@@ -165,7 +165,7 @@ fn handle_error(
     match conn {
         Ok(val) => Some(val),
         Err(error) => {
-            eprintln!("Incoming connection failed: {}", error);
+            eprintln!("Incoming connection failed: {error}");
             None
         }
     }

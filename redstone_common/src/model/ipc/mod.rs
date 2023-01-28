@@ -55,10 +55,7 @@ pub struct IpcMessageRequest {
 
 impl IpcMessageRequest {
     pub fn is_confirmation(&self) -> bool {
-        match self.message {
-            IpcMessageRequestType::ConfirmationRequest(_) => true,
-            _ => false,
-        }
+        matches!(self.message, IpcMessageRequestType::ConfirmationRequest(_))
     }
 
     pub fn get_confirmation(self) -> ConfirmationRequest {

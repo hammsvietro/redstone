@@ -41,15 +41,10 @@ pub fn run_clone_cmd(clone_args: CloneArgs) -> Result<()> {
     let confirmation_response = handle_confirmation_request(&confirmation_request)?;
     if !confirmation_response.keep_connection {
         if let Some(err) = confirmation_response.error {
-            return Err(RedstoneError::from(err));
+            return Err(err);
         }
         return Ok(());
     }
-    let received_message =
-        send_and_receive(&mut connection, IpcMessage::from(confirmation_response));
-    if let Err(err) = received_message {
-        return Err(err);
-    }
-
+    send_and_receive(&mut connection, IpcMessage::from(confirmation_response))?;
     Ok(())
 }

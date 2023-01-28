@@ -1,6 +1,9 @@
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, path::PathBuf};
+use std::{
+    fmt::Debug,
+    path::{Path, PathBuf},
+};
 
 use crate::util::generate_sha256_digest;
 
@@ -81,7 +84,8 @@ impl FSTree {
         let conflicting_files = self
             .files
             .iter()
-            .filter(|file| file_paths.contains(&file.path.to_string())).cloned()
+            .filter(|file| file_paths.contains(&file.path.to_string()))
+            .cloned()
             .collect();
         conflicting_files
     }
@@ -134,7 +138,7 @@ fn read_dir(
     Ok(file_tree_items)
 }
 
-fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
+fn build_relative_file_path(path: &Path, root: &str) -> String {
     let suffix = match root.ends_with('/') {
         true => String::from(root),
         false => String::from(root) + "/",

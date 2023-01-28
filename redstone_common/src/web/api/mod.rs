@@ -187,8 +187,7 @@ pub async fn handle_response<T: DeserializeOwned>(response: reqwest::Response) -
             return Err(RedstoneError::ApiError(parsed_error));
         }
         return Err(RedstoneError::BaseError(format!(
-            "Error while making request with the API:\nStatus code: {}",
-            status_code
+            "Error while making request with the API:\nStatus code: {status_code}"
         )));
     }
     Ok(response.json::<T>().await?)

@@ -90,7 +90,7 @@ pub async fn download_files(
 ) -> Result<()> {
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
-    let mut bytes_received: u64 = 0;
+    let mut _bytes_received: u64 = 0;
     for file in files {
         let mut path = root.clone();
         path.push(file.path.clone());
@@ -112,7 +112,7 @@ pub async fn download_files(
                 break;
             }
             let data = response.data.unwrap();
-            bytes_received += data.len() as u64;
+            _bytes_received += data.len() as u64;
             let mut file = tokio::fs::OpenOptions::new()
                 .append(true)
                 .create(true)
