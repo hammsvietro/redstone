@@ -9,7 +9,7 @@ use reqwest::Method;
 
 pub fn run_auth_cmd(client: RedstoneBlockingClient) -> Result<()> {
     let auth_request = prompt_credentials()?;
-    Ok(login(auth_request, client)?)
+    login(auth_request, client)
 }
 
 fn login<S: BlockingHttpSend>(
@@ -106,7 +106,7 @@ mod tests {
                     .request(Method::POST, server.url("/api/auth"))
                     .send()?;
                 api_mock.assert();
-                return Ok(response);
+                Ok(response)
             }
         }
     }

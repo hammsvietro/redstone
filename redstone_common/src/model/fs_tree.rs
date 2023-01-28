@@ -1,6 +1,9 @@
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, path::PathBuf};
+use std::{
+    fmt::Debug,
+    path::{Path, PathBuf},
+};
 
 use crate::util::generate_sha256_digest;
 
@@ -82,7 +85,7 @@ impl FSTree {
             .files
             .iter()
             .filter(|file| file_paths.contains(&file.path.to_string()))
-            .map(|file| file.clone())
+            .cloned()
             .collect();
         conflicting_files
     }
@@ -109,7 +112,7 @@ fn read_dir(
         dir.push("..");
     }
 
-    let mut builder_base = WalkBuilder::new(&dir);
+    let mut builder_base = WalkBuilder::new(dir);
     for previous_ignore in ignores.iter_mut() {
         builder_base.add_custom_ignore_filename(previous_ignore);
     }
@@ -132,11 +135,11 @@ fn read_dir(
             file_tree_items.push(file);
         }
     }
-    return Ok(file_tree_items);
+    Ok(file_tree_items)
 }
 
-fn build_relative_file_path(path: &PathBuf, root: &str) -> String {
-    let suffix = match root.ends_with("/") {
+fn build_relative_file_path(path: &Path, root: &str) -> String {
+    let suffix = match root.ends_with('/') {
         true => String::from(root),
         false => String::from(root) + "/",
     };
@@ -166,18 +169,18 @@ mod tests {
                 String::from("./test-data/other_folder/other_file.hs"),
                 String::from("982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64"),
                 0,
-                200 as u64,
+                200_u64,
             ),
             RSFile::new(
                 String::from("./test-data/other_folder/other_file.hs"),
                 String::from("982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64"),
                 0,
-                200 as u64,
+                200_u64,
             ),
         ];
         let mut target_fs_tree = FSTree {
             files,
-            root: path.clone(),
+            root: path,
             max_depth: None,
         };
         assert_eq!(target_fs_tree.max_depth, fs_tree.max_depth);

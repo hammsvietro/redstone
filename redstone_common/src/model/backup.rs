@@ -1,7 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use super::api::{Backup, Update}
-;
+use super::api::{Backup, Update};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -46,8 +45,8 @@ impl BackupConfig {
     }
 }
 
-pub fn get_index_file_for_path(path: &PathBuf) -> PathBuf {
-    let mut path = path.clone();
+pub fn get_index_file_for_path(path: &Path) -> PathBuf {
+    let mut path = path.to_path_buf();
     path.push(".rs");
     path.push("index");
     path

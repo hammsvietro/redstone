@@ -44,7 +44,7 @@ async fn run_stored_jobs(jobs: Vec<UpdateJob>) -> Vec<JoinHandle<Result<()>>> {
 fn run_job(job: UpdateJob) -> JoinHandle<Result<()>> {
     tokio::task::spawn(async move {
         let schedule = Schedule::from_str(job.cron_expr.as_str())
-            .or_else(|_| Err(RedstoneError::CronParseError(job.cron_expr)))?;
+            .map_err(|_| RedstoneError::CronParseError(job.cron_expr))?;
         for date_time in schedule.after(&Utc::now()) {
             sleep_until_exec_time(date_time).await;
         }
@@ -60,7 +60,7 @@ async fn listen_for_new_jobs(new_job_receiver: &mut UnboundedReceiver<UpdateJob>
     Ok(())
 }
 
-async fn sleep_until_exec_time(date_time: chrono::DateTime<Utc>) -> () {
+async fn sleep_until_exec_time(date_time: chrono::DateTime<Utc>) {
     let duration = tokio::time::Duration::from_secs((date_time - Utc::now()).num_seconds() as u64);
     tokio::time::sleep(duration).await;
 }

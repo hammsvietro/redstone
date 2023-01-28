@@ -1,4 +1,4 @@
-pub const IPC_SOCKET_PATH: &'static str = "/tmp/redstone.sock";
+pub const IPC_SOCKET_PATH: &str = "/tmp/redstone.sock";
 
 #[cfg(target_os = "linux")]
 pub const IPC_BUFFER_SIZE: usize = 16384;

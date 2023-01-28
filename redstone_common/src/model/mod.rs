@@ -91,7 +91,7 @@ impl Display for RedstoneError {
             Self::DomainError(error) => error.to_string(),
             Self::ConnectionTimeout => String::from("Connection timed out."),
             Self::CronParseError(cron) => format!("Couldn't parse cron string: {cron}"),
-            Self::IOError(reason) => format!("{reason}"),
+            Self::IOError(reason) => reason.to_string(),
             Self::FolderOrFileNotFound(path) => format!("Couldn't open a file/folder: {path}"),
             Self::NoHomeDir => String::from("Couldn't find your home directory."),
             Self::Unauthorized => {
@@ -105,7 +105,7 @@ impl Display for RedstoneError {
             }
             Self::TokioError(error) => error.to_owned(),
         };
-        write!(f, "{}", error)
+        write!(f, "{error}")
     }
 }
 
@@ -121,7 +121,7 @@ impl Display for ArgumentError {
             Self::InvalidPath(path) => format!("Path \"{path}\" is not valid."),
             Self::PathCannotBeAFile(path) => format!("Path \"{path}\" cannot be a file."),
         };
-        write!(f, "{}", error)
+        write!(f, "{error}")
     }
 }
 
@@ -137,7 +137,7 @@ impl Display for DomainError {
                 format!("Directory is already being tracked: \"{path}\"")
             }
         };
-        write!(f, "{}", error)
+        write!(f, "{error}")
     }
 }
 

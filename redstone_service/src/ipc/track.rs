@@ -83,7 +83,7 @@ fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
     Ok(response.into())
 }
 
-async fn send_progress(progress_receiver: &mut UnboundedReceiver<u64>, total_size: u64) {
+async fn send_progress(_progress_receiver: &mut UnboundedReceiver<u64>, _total_size: u64) {
     // while let Some(sent) = progress_receiver.recv().await {
     //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
     //  // send to cli
@@ -95,7 +95,7 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     let mut first_depth_file_structure: HashSet<String> = HashSet::new();
     for item in fs_tree.get_first_depth() {
         let file_path = item.path.as_str();
-        let formatted_path = match file_path.split_once("/") {
+        let formatted_path = match file_path.split_once('/') {
             None => String::from(file_path),
             Some((before, _after)) => String::from(before) + "/",
         };

@@ -45,7 +45,7 @@ pub fn get_auth_dir() -> Result<PathBuf> {
     if !dir.exists() {
         std::fs::File::create(&dir).unwrap();
     }
-    Ok(dir.into())
+    Ok(dir)
 }
 
 #[cfg(not(feature = "testing"))]
@@ -59,7 +59,7 @@ pub fn get_auth_dir() -> Result<PathBuf> {
 pub fn get_auth_data() -> Result<Option<AuthData>> {
     let auth_dir = get_auth_dir()?;
     let content = std::fs::read_to_string(auth_dir)?;
-    if content.len() == 0 {
+    if content.is_empty() {
         return Ok(None);
     }
     Ok(bincode::deserialize(content.as_bytes())?)

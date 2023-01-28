@@ -25,7 +25,7 @@ impl AuthRequest {
     }
 }
 
-const API_BASE_URL: &'static str = "http://127.0.0.1:4000"; // TODO: Change this
+const API_BASE_URL: &str = "http://127.0.0.1:4000"; // TODO: Change this
 
 //
 // NON-BLOCKING
@@ -80,7 +80,7 @@ impl RedstoneClient<Sender> {
         if let Some(body) = body {
             request = request.json(body);
         }
-        Ok(self.sender.send(request, &self.client).await?)
+        self.sender.send(request, &self.client).await
     }
 }
 
@@ -146,7 +146,7 @@ impl<S: BlockingHttpSend> RedstoneBlockingClient<S> {
         if let Some(body) = body {
             request = request.json(body);
         }
-        Ok(self.sender.send(request, &self.client)?)
+        self.sender.send(request, &self.client)
     }
 }
 
@@ -175,7 +175,7 @@ fn get_blocking_http_client(cookie_jar: Arc<Jar>) -> reqwest::blocking::Client {
 fn get_http_client(cookie_jar: Arc<Jar>) -> reqwest::Client {
     reqwest::ClientBuilder::new()
         .cookie_store(true)
-        .cookie_provider(cookie_jar.clone())
+        .cookie_provider(cookie_jar)
         .build()
         .unwrap()
 }
@@ -187,8 +187,7 @@ pub async fn handle_response<T: DeserializeOwned>(response: reqwest::Response) -
             return Err(RedstoneError::ApiError(parsed_error));
         }
         return Err(RedstoneError::BaseError(format!(
-            "Error while making request with the API:\nStatus code: {}",
-            status_code
+            "Error while making request with the API:\nStatus code: {status_code}"
         )));
     }
     Ok(response.json::<T>().await?)

@@ -33,7 +33,7 @@ pub async fn send_files(
         let mut retry_count: u8 = 0;
         loop {
             let mut file_upload_message =
-                FileUploadMessageFactory::new(&upload_token, &file, root_folder.clone());
+                FileUploadMessageFactory::new(upload_token, file, root_folder.clone());
             while file_upload_message.has_data_to_fetch() {
                 let packet = file_upload_message.get_tcp_payload()?;
                 send_message(&mut stream, &packet).await?;
@@ -50,7 +50,7 @@ pub async fn send_files(
                 }
             }
             let check_file_message =
-                CheckFileMessageFactory::new(&upload_token, &file.id).get_tcp_payload()?;
+                CheckFileMessageFactory::new(upload_token, &file.id).get_tcp_payload()?;
             println!("Verifying checksum");
             send_message(&mut stream, &check_file_message).await?;
             let response: TcpMessageResponse<()> = receive_message(&mut stream).await?;
@@ -90,7 +90,7 @@ pub async fn download_files(
 ) -> Result<()> {
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
-    let mut bytes_received: u64 = 0;
+    let mut _bytes_received: u64 = 0;
     for file in files {
         let mut path = root.clone();
         path.push(file.path.clone());
@@ -112,7 +112,7 @@ pub async fn download_files(
                 break;
             }
             let data = response.data.unwrap();
-            bytes_received += data.len() as u64;
+            _bytes_received += data.len() as u64;
             let mut file = tokio::fs::OpenOptions::new()
                 .append(true)
                 .create(true)

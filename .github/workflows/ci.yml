@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env: 
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: Rust project - latest
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update deps
+        run: |
+          rustup update ${{ matrix.toolchain }} 
+          rustup default ${{ matrix.toolchain }} 
+          rustup component add rustfmt
+          rustup component add clippy
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run lint
+        run: |
+          cargo fmt --check
+          cargo clippy -- -Dwarnings
+
+
+      - name: Test
+        run: cargo test --verbose
+  
