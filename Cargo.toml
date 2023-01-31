@@ -1,6 +1,3 @@
 [workspace]
-members = [
-  "redstone_cli",
-  "redstone_common",
-  "redstone_service",
-]
+members = ["redstone_cli", "redstone_common", "redstone_service"]
+resolver = "2"
