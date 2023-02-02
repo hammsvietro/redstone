@@ -9,7 +9,7 @@ use redstone_common::{
     },
     web::tcp::{
         receive_message, send_message, CheckFileMessageFactory, CommitMessageFactory,
-        DownloadChunkMessageFactory, FileUploadMessageFactory,
+        DownloadChunkMessageFactory, FileUploadMessageFactory, FinishDownloadMessageFactory,
     },
 };
 
@@ -124,6 +124,17 @@ pub async fn download_files(
             }
         }
         println!("downloaded {}", file.path);
+    }
+    let packet = FinishDownloadMessageFactory::new(download_token.to_string()).get_tcp_payload()?;
+    send_message(&mut stream, &packet).await?;
+    let response: TcpMessageResponse<Vec<u8>> = receive_message(&mut stream).await?;
+    if response.status != TcpMessageResponseStatus::Ok {
+        // TODO: send abort message
+        let error = format!(
+            "Error commiting finalizing download.\nServer responded: {}",
+            response.reason.unwrap()
+        );
+        return Err(RedstoneError::BaseError(error));
     }
     Ok(())
 }

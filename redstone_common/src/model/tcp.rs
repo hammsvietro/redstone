@@ -15,6 +15,7 @@ pub enum TcpOperation {
     Commit,
     CheckFile,
     DownloadChunk,
+    FinishDownload,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -60,6 +61,12 @@ pub struct FileUploadMessage {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct CommitMessage {
     pub upload_token: String,
+    pub operation: TcpOperation,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct FinishDownloadMessage {
+    pub download_token: String,
     pub operation: TcpOperation,
 }
 
