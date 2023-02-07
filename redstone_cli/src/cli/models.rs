@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[clap(author="Pedro Vietro", version="0.0.1", about="TODO", long_about = None)]
+#[clap(author="Pedro Vietro", version="0.0.1", about="Redstone is a Self-hosted CLI backup tool ", long_about = None)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
@@ -9,9 +9,17 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    Track(TrackArgs),
-    Clone(CloneArgs),
+    /// Authenticate by using your email and password
     Auth,
+
+    /// Clone a backup by providing the backup name
+    Clone(CloneArgs),
+
+    /// Push the changes made to the server
+    Push,
+
+    /// Recursively scan a directory and create a backup with all the files scanned
+    Track(TrackArgs),
 }
 
 #[derive(Debug, Args)]

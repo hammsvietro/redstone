@@ -29,7 +29,7 @@ pub async fn handle_track_msg(
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: Some(RedstoneError::DomainError(
-                DomainError::DirectoryAlreadyBeingTracked(path),
+                DomainError::BackupAlreadyExists(path),
             )),
             message: None,
         });

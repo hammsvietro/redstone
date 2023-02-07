@@ -1,8 +1,10 @@
 pub mod clone;
+pub mod push;
 pub mod track;
 
 use self::clone::CloneRequest;
-use self::track::{TrackMessageResponse, TrackRequest};
+use self::push::PushRequest;
+use self::track::TrackRequest;
 use super::RedstoneError;
 
 use serde::{Deserialize, Serialize};
@@ -83,9 +85,10 @@ impl From<IpcMessage> for IpcMessageRequest {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum IpcMessageRequestType {
-    TrackRequest(TrackRequest),
     CloneRequest(CloneRequest),
     ConfirmationRequest(ConfirmationRequest),
+    PushRequest(PushRequest),
+    TrackRequest(TrackRequest),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -138,7 +141,6 @@ impl From<IpcMessage> for IpcMessageResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum IpcMessageResponseType {
-    TrackMessageResponse(TrackMessageResponse),
     ConfirmationResponse(ConfirmationResponse),
 }
 

@@ -17,9 +17,9 @@ pub fn send_and_receive(
     ipc_message: IpcMessage,
 ) -> Result<IpcMessage> {
     let mut buffer = [0; IPC_BUFFER_SIZE];
-    let encoded_message = bincode::serialize(&ipc_message).unwrap();
+    let encoded_message = bincode::serialize(&ipc_message)?;
     conn.write_all(&encoded_message)?;
     let mut buff_reader = BufReader::new(conn.borrow_mut());
     let _ = buff_reader.read(buffer.borrow_mut())?;
-    Ok(bincode::deserialize::<IpcMessage>(buffer.borrow_mut()).unwrap())
+    Ok(bincode::deserialize::<IpcMessage>(buffer.borrow_mut())?)
 }

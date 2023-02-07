@@ -23,7 +23,7 @@ pub fn run_clone_cmd(clone_args: CloneArgs) -> Result<()> {
     if index_file_path.exists() {
         let path = path.to_str().unwrap().into();
         return Err(RedstoneError::DomainError(
-            DomainError::DirectoryAlreadyBeingTracked(path),
+            DomainError::BackupAlreadyExists(path),
         ));
     }
 
