@@ -7,12 +7,11 @@ mod track;
 
 use clap::Parser;
 use models::{Cli, Commands};
-use redstone_common::web::api::{jar::get_jar, RedstoneBlockingClient};
+use redstone_common::web::api::RedstoneBlockingClient;
 
 pub fn input() -> redstone_common::model::Result<()> {
     let args = Cli::parse();
-    let jar = get_jar()?;
-    let client = RedstoneBlockingClient::new(jar);
+    let client = RedstoneBlockingClient::new();
     match args.command {
         Commands::Auth => auth::run_auth_cmd(client),
         Commands::Clone(clone_args) => clone::run_clone_cmd(clone_args),

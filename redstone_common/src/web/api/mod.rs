@@ -5,6 +5,8 @@ use crate::model::{RedstoneError, Result};
 use async_trait::async_trait;
 use reqwest::{cookie::Jar, Method, Url};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+use self::jar::get_jar;
 pub mod jar;
 
 #[derive(Serialize, Debug)]
@@ -60,13 +62,23 @@ pub struct RedstoneClient<S: HttpSend = Sender> {
 }
 
 impl RedstoneClient<Sender> {
-    pub fn new(jar: Arc<Jar>) -> Self {
+    pub fn new() -> Self {
+        let jar = get_jar();
         Self {
             client: get_http_client(jar.clone()),
             jar,
             sender: Sender,
         }
     }
+
+    pub fn with_custom_jar(jar: Arc<Jar>) -> Self {
+        Self {
+            client: get_http_client(jar.clone()),
+            jar,
+            sender: Sender,
+        }
+    }
+
     pub async fn send<T>(
         &self,
         method: Method,
@@ -80,7 +92,11 @@ impl RedstoneClient<Sender> {
         if let Some(body) = body {
             request = request.json(body);
         }
-        self.sender.send(request, &self.client).await
+        let response = self.sender.send(request, &self.client).await?;
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(RedstoneError::Unauthorized);
+        }
+        Ok(response)
     }
 }
 
@@ -146,12 +162,25 @@ impl<S: BlockingHttpSend> RedstoneBlockingClient<S> {
         if let Some(body) = body {
             request = request.json(body);
         }
-        self.sender.send(request, &self.client)
+        let response = self.sender.send(request, &self.client)?;
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(RedstoneError::Unauthorized);
+        }
+        Ok(response)
     }
 }
 
 impl RedstoneBlockingClient<BlockingSender> {
-    pub fn new(jar: Arc<Jar>) -> Self {
+    pub fn new() -> Self {
+        let jar = get_jar();
+        Self {
+            client: get_blocking_http_client(jar.clone()),
+            jar,
+            sender: BlockingSender,
+        }
+    }
+
+    pub fn with_jar(jar: Arc<Jar>) -> Self {
         Self {
             client: get_blocking_http_client(jar.clone()),
             jar,

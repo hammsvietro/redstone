@@ -21,6 +21,8 @@ use crate::{
     scheduler::UpdateJob,
 };
 
+use super::push::handle_push_msg;
+
 pub async fn run_socket_loop(new_job_sender: UnboundedSender<UpdateJob>) -> Result<()> {
     let listener = LocalSocketListener::bind(IPC_SOCKET_PATH)?;
     println!("Listening on {IPC_SOCKET_PATH}");
@@ -108,6 +110,9 @@ async fn handle_message(
         }
         IpcMessageRequestType::CloneRequest(mut clone_request) => {
             handle_clone_msg(connection.borrow_mut(), &mut clone_request).await
+        }
+        IpcMessageRequestType::PushRequest(mut push_request) => {
+            handle_push_msg(connection.borrow_mut(), &mut push_request).await
         }
         _ => unreachable!(),
     }

@@ -22,10 +22,14 @@ fn login<S: BlockingHttpSend>(
         &Some(auth_request),
     )?;
 
-    if res.status() != reqwest::StatusCode::OK {
+    if res.status() == reqwest::StatusCode::UNAUTHORIZED {
         return Err(RedstoneError::BaseError(String::from(
             "Incorrect Credentails",
         )));
+    }
+
+    if res.status() != reqwest::StatusCode::OK {
+        return Err(RedstoneError::BaseError(String::from(res.text()?)));
     }
 
     store_cookies(client.jar)?;

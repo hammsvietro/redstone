@@ -11,7 +11,7 @@ use redstone_common::{
         Result,
     },
     util::bytes_to_human_readable,
-    web::api::{jar::get_jar, RedstoneClient},
+    web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
 use tokio::io::AsyncWriteExt;
@@ -22,13 +22,13 @@ pub async fn handle_clone_msg(
     connection: &mut LocalSocketStream,
     clone_request: &mut CloneRequest,
 ) -> Result<IpcMessage> {
-    let client = RedstoneClient::new(get_jar()?);
+    let client = RedstoneClient::new();
     let request = &Some(ApiCloneRequest::new(clone_request.backup_name.clone()));
     let response = client
         .send(Method::POST, Endpoints::Clone.get_url(), request)
         .await?;
 
-    let clone_response: CloneResponse = response.json().await?;
+    let clone_response: CloneResponse = handle_response(response).await?;
 
     let conflicting_files =
         get_conflicting_files(&clone_request.path, &clone_response.files_to_download)?;

@@ -23,5 +23,6 @@ pub fn run_push_cmd() -> Result<()> {
     });
     let mut connection = stablish_connection()?;
     let response = send_and_receive(&mut connection, request)?;
+    println!("{:?}", response);
     Ok(())
 }

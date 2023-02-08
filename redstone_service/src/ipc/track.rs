@@ -8,7 +8,7 @@ use redstone_common::{
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse},
         DomainError, RedstoneError, Result,
     },
-    web::api::{handle_response, jar::get_jar, RedstoneClient},
+    web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
 use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
@@ -110,8 +110,7 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
 }
 
 async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBackupResponse> {
-    let cookie_jar = get_jar()?;
-    let client = RedstoneClient::new(cookie_jar);
+    let client = RedstoneClient::new();
 
     let response = client
         .send(Method::POST, Endpoints::Declare.get_url(), &Some(request))
