@@ -16,7 +16,7 @@ use crate::{
         api,
         tcp::{
             AbortMessage, CheckFileMessage, CommitMessage, DownloadChunkMessage, FileUploadMessage,
-            TcpMessage, TcpOperation,
+            FinishDownloadMessage, TcpMessage, TcpOperation,
         },
         Result,
     },
@@ -204,6 +204,27 @@ impl TcpMessage for DownloadChunkMessageFactory {
             offset: self.offset,
         };
         self.offset += 1;
+        Ok(bson::to_vec(&message)?)
+    }
+}
+
+pub struct FinishDownloadMessageFactory {
+    pub download_token: String,
+}
+
+impl FinishDownloadMessageFactory {
+    pub fn new(download_token: String) -> Self {
+        Self { download_token }
+    }
+}
+
+impl TcpMessage for FinishDownloadMessageFactory {
+    const OPERATION: TcpOperation = TcpOperation::FinishDownload;
+    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+        let message = FinishDownloadMessage {
+            download_token: self.download_token.to_string(),
+            operation: Self::OPERATION,
+        };
         Ok(bson::to_vec(&message)?)
     }
 }

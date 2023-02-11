@@ -166,16 +166,16 @@ mod tests {
         let mut fs_tree = FSTree::build(path.clone(), None).unwrap();
         let files = vec![
             RSFile::new(
-                String::from("./test-data/other_folder/other_file.hs"),
+                String::from("other_folder/other_file.hs"),
                 String::from("982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64"),
-                0,
-                200_u64,
+                1,
+                53_u64,
             ),
             RSFile::new(
-                String::from("./test-data/other_folder/other_file.hs"),
-                String::from("982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64"),
+                String::from("hello.ex"),
+                String::from("1d8326dc32bc35812503ecfcce8ca3db0f025fb84d589df4e687b96f6cdf03fe"),
                 0,
-                200_u64,
+                159_u64,
             ),
         ];
         let mut target_fs_tree = FSTree {
@@ -183,8 +183,11 @@ mod tests {
             root: path,
             max_depth: None,
         };
+        target_fs_tree.files.sort();
+        fs_tree.files.sort();
+
         assert_eq!(target_fs_tree.max_depth, fs_tree.max_depth);
         assert_eq!(target_fs_tree.root, fs_tree.root);
-        assert_eq!(target_fs_tree.files.sort(), fs_tree.files.sort());
+        assert_eq!(target_fs_tree, fs_tree);
     }
 }
