@@ -30,17 +30,11 @@ impl RSFile {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct RSFolder {
-    pub path: String,
-    pub items: Vec<RSFile>,
-    pub depth: u16,
-}
-
-impl RSFolder {
-    pub fn new(path: String, items: Vec<RSFile>, depth: u16) -> Self {
-        Self { path, items, depth }
-    }
+#[derive(Debug)]
+pub struct FSTreeDiff {
+    pub new: Vec<RSFile>,
+    pub changed: Vec<RSFile>,
+    pub removed: Vec<RSFile>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -88,6 +82,45 @@ impl FSTree {
             .cloned()
             .collect();
         conflicting_files
+    }
+
+    pub fn diff(&self, old_fs_tree: &Self) -> Result<FSTreeDiff> {
+        let mut new_files = vec![];
+        let mut changed_files = vec![];
+        let mut unchanged_files = vec![];
+
+        for file in self.files.clone() {
+            let old_file = old_fs_tree
+                .files
+                .iter()
+                .find(|old_file| old_file.path == file.path);
+
+            if old_file.is_none() {
+                new_files.push(file);
+                continue;
+            }
+            let old_file = old_file.unwrap();
+            if file.sha_256_digest != old_file.sha_256_digest {
+                changed_files.push(file);
+                continue;
+            }
+            unchanged_files.push(file);
+        }
+
+        let removed_files = old_fs_tree
+            .files
+            .iter()
+            .filter(|old_file| {
+                return !changed_files.contains(*old_file) && !self.files.contains(*old_file);
+            })
+            .cloned()
+            .collect();
+
+        Ok(FSTreeDiff {
+            new: new_files,
+            changed: changed_files,
+            removed: removed_files,
+        })
     }
 }
 
@@ -159,6 +192,43 @@ mod tests {
     use std::{path::PathBuf, str::FromStr};
 
     use super::FSTree;
+
+    #[test]
+    fn file_diffing() {
+        let path = PathBuf::from_str("./test-data").unwrap();
+        let old_fs_tree = FSTree::build(path.clone(), None).unwrap();
+        let mut fs_tree = old_fs_tree.clone();
+        let removed_file = fs_tree.files.pop().unwrap();
+        println!("removed: {:?}", removed_file);
+        let mut changed_file = &mut fs_tree.files[0];
+        changed_file.sha_256_digest =
+            String::from("982bc87271bad526f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f5e");
+        let changed_file = changed_file.clone();
+        let new_file = RSFile::new(
+            "new_file.elm".into(),
+            "982bc87271bad526f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f5e".into(),
+            0,
+            123,
+        );
+        fs_tree.files.push(new_file.clone());
+
+        println!("\n");
+        println!("old:");
+        println!("{:?}", old_fs_tree);
+
+        println!("\n");
+        println!("new:");
+        println!("{:?}", fs_tree);
+
+        let files_diff = fs_tree.diff(&old_fs_tree).unwrap();
+        println!("\n");
+        println!("diff:");
+        println!("{:?}", files_diff);
+
+        assert_eq!(files_diff.new, vec![new_file]);
+        assert_eq!(files_diff.changed, vec![changed_file]);
+        assert_eq!(files_diff.removed, vec![removed_file]);
+    }
 
     #[test]
     fn scans_a_directory_recursively() {
