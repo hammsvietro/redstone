@@ -1,6 +1,15 @@
-use std::path::{Path, PathBuf};
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+};
 
-use super::api::{Backup, Update};
+use crate::model::{DomainError, RedstoneError};
+
+use super::{
+    api::{Backup, Update},
+    fs_tree::FSTree,
+    Result,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -13,6 +22,7 @@ pub struct Config {
 pub struct IndexFile {
     pub config: BackupConfig,
     pub backup: Backup,
+    pub last_fs_tree: FSTree,
     pub current_update: Update,
     pub latest_update: Update,
 }
@@ -23,13 +33,28 @@ impl IndexFile {
         current_update: Update,
         latest_update: Update,
         config: BackupConfig,
+        fs_tree: FSTree,
     ) -> Self {
         Self {
             backup,
             current_update,
             latest_update,
             config,
+            last_fs_tree: fs_tree,
         }
+    }
+
+    pub fn from_file(path: &Path) -> Result<Self> {
+        let metadata = std::fs::metadata(path)?;
+        let mut buffer = vec![0_u8; metadata.len() as usize];
+        let mut file = std::fs::File::open(path)?;
+        file.read(&mut buffer)?;
+        if buffer.is_empty() {
+            return Err(RedstoneError::DomainError(DomainError::BackupDoesntExist(
+                path.to_str().unwrap().into(),
+            )));
+        }
+        Ok(bincode::deserialize(&buffer)?)
     }
 }
 

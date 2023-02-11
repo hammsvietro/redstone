@@ -32,9 +32,9 @@ impl RSFile {
 
 #[derive(Debug)]
 pub struct FSTreeDiff {
-    pub new: Vec<RSFile>,
-    pub changed: Vec<RSFile>,
-    pub removed: Vec<RSFile>,
+    pub new_files: Vec<RSFile>,
+    pub changed_files: Vec<RSFile>,
+    pub removed_files: Vec<RSFile>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -87,7 +87,6 @@ impl FSTree {
     pub fn diff(&self, old_fs_tree: &Self) -> Result<FSTreeDiff> {
         let mut new_files = vec![];
         let mut changed_files = vec![];
-        let mut unchanged_files = vec![];
 
         for file in self.files.clone() {
             let old_file = old_fs_tree
@@ -104,22 +103,24 @@ impl FSTree {
                 changed_files.push(file);
                 continue;
             }
-            unchanged_files.push(file);
         }
 
         let removed_files = old_fs_tree
             .files
             .iter()
             .filter(|old_file| {
-                return !changed_files.contains(*old_file) && !self.files.contains(*old_file);
+                self.files
+                    .iter()
+                    .find(|file| old_file.path == file.path)
+                    .is_none()
             })
             .cloned()
             .collect();
 
         Ok(FSTreeDiff {
-            new: new_files,
-            changed: changed_files,
-            removed: removed_files,
+            new_files,
+            changed_files,
+            removed_files,
         })
     }
 }
@@ -225,9 +226,9 @@ mod tests {
         println!("diff:");
         println!("{:?}", files_diff);
 
-        assert_eq!(files_diff.new, vec![new_file]);
-        assert_eq!(files_diff.changed, vec![changed_file]);
-        assert_eq!(files_diff.removed, vec![removed_file]);
+        assert_eq!(files_diff.new_files, vec![new_file]);
+        assert_eq!(files_diff.changed_files, vec![changed_file]);
+        assert_eq!(files_diff.removed_files, vec![removed_file]);
     }
 
     #[test]

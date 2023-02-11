@@ -56,7 +56,9 @@ pub async fn handle_clone_msg(
     )
     .await?;
 
-    write_index_file(clone_request.borrow_mut(), &clone_response).await?;
+    let fs_tree = FSTree::build(clone_request.path.clone(), None)?;
+
+    write_index_file(clone_request.borrow_mut(), &clone_response, fs_tree).await?;
 
     Ok(IpcMessageResponse {
         message: None,
@@ -91,6 +93,7 @@ fn get_confirmation_request_message(conflicting_files: Vec<RSFile>, total_bytes:
 async fn write_index_file(
     clone_request: &mut CloneRequest,
     clone_response: &CloneResponse,
+    fs_tree: FSTree,
 ) -> Result<()> {
     let backup_config = BackupConfig::new(None, false);
     let index_file = IndexFile::new(
@@ -98,6 +101,7 @@ async fn write_index_file(
         clone_response.update.clone(),
         clone_response.update.clone(),
         backup_config,
+        fs_tree,
     );
     let index_file_path = get_index_file_for_path(&clone_request.path);
     if !index_file_path.exists() {

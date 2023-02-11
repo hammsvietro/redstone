@@ -53,8 +53,11 @@ pub async fn handle_track_msg(
 
     let total_size = fs_tree.total_size();
     let root_folder = fs_tree.root.clone();
-    let declare_request =
-        DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root, fs_tree.files);
+    let declare_request = DeclareBackupRequest::new(
+        track_request.name.as_str(),
+        fs_tree.root.clone(),
+        fs_tree.files.clone(),
+    );
 
     let declare_response = declare(&declare_request).await?;
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
@@ -71,6 +74,7 @@ pub async fn handle_track_msg(
         &index_file_path,
         declare_response,
         track_request.borrow_mut(),
+        fs_tree,
     )?;
     wrap(IpcMessageResponse {
         keep_connection: false,
@@ -123,6 +127,7 @@ fn create_files(
     index_file_path: &PathBuf,
     declare_response: DeclareBackupResponse,
     track_request: &mut TrackRequest,
+    fs_tree: FSTree,
 ) -> Result<IndexFile> {
     let parent_folders = index_file_path.parent();
     if let Some(folder_path) = parent_folders {
@@ -135,6 +140,7 @@ fn create_files(
         declare_response.update.clone(),
         declare_response.update,
         config,
+        fs_tree,
     );
     index_file.write_all(&bincode::serialize(&index_file_content)?)?;
     Ok(index_file_content)
