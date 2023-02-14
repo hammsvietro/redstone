@@ -203,10 +203,10 @@ mod tests {
     #[test]
     fn file_diffing() {
         let path = PathBuf::from_str("./test-data").unwrap();
-        let old_fs_tree = FSTree::build(path.clone(), None).unwrap();
+        let old_fs_tree = FSTree::build(path, None).unwrap();
         let mut fs_tree = old_fs_tree.clone();
         let removed_file = fs_tree.files.pop().unwrap();
-        println!("removed: {:?}", removed_file);
+        println!("removed: {removed_file:?}");
         let mut changed_file = &mut fs_tree.files[0];
         changed_file.sha_256_digest =
             String::from("982bc87271bad526f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f5e");
@@ -221,16 +221,16 @@ mod tests {
 
         println!("\n");
         println!("old:");
-        println!("{:?}", old_fs_tree);
+        println!("{old_fs_tree:?}");
 
         println!("\n");
         println!("new:");
-        println!("{:?}", fs_tree);
+        println!("{fs_tree:?}");
 
         let files_diff = fs_tree.diff(&old_fs_tree).unwrap();
         println!("\n");
         println!("diff:");
-        println!("{:?}", files_diff);
+        println!("{files_diff:?}");
 
         assert_eq!(files_diff.new_files, vec![new_file]);
         assert_eq!(files_diff.changed_files, vec![changed_file]);

@@ -1,7 +1,7 @@
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
-        api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
+        api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints, FileUploadRequest},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::FSTree,
         ipc::track::TrackRequest,
@@ -53,11 +53,14 @@ pub async fn handle_track_msg(
 
     let total_size = fs_tree.total_size();
     let root_folder = fs_tree.root.clone();
-    let declare_request = DeclareBackupRequest::new(
-        track_request.name.as_str(),
-        fs_tree.root.clone(),
-        fs_tree.files.clone(),
-    );
+    let files = fs_tree
+        .files
+        .iter()
+        .map(|file| FileUploadRequest::from(file.clone()))
+        .collect();
+
+    let declare_request =
+        DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root.clone(), files);
 
     let declare_response = declare(&declare_request).await?;
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();

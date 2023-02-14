@@ -7,9 +7,10 @@ use crate::web::api::get_api_base_url;
 use super::fs_tree::RSFile;
 
 pub enum Endpoints {
-    Declare,
     Clone,
+    Declare,
     Login,
+    Push,
 }
 
 impl Endpoints {
@@ -19,8 +20,52 @@ impl Endpoints {
             Self::Clone => "/api/download/clone",
             Self::Declare => "/api/upload/declare",
             Self::Login => "/api/login",
+            Self::Push => "/api/push",
         };
         base_url.join(sufix).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[serde(rename_all = "snake_case")]
+pub enum FileOperation {
+    Add,
+    Update,
+    Remove,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct FileUploadRequest {
+    pub path: String,
+    pub sha_256_digest: Option<String>,
+    pub operation: FileOperation,
+    pub size: u64,
+}
+
+impl FileUploadRequest {
+    pub fn new(
+        path: String,
+        sha_256_digest: Option<String>,
+        operation: FileOperation,
+        size: u64,
+    ) -> Self {
+        Self {
+            path,
+            sha_256_digest,
+            operation,
+            size,
+        }
+    }
+}
+
+impl From<RSFile> for FileUploadRequest {
+    fn from(rs_file: RSFile) -> Self {
+        Self {
+            path: rs_file.path,
+            sha_256_digest: Some(rs_file.sha_256_digest),
+            operation: FileOperation::Add,
+            size: rs_file.size,
+        }
     }
 }
 
@@ -33,13 +78,13 @@ pub enum ApiRequestWrapper<T: Serialize> {
 
 #[derive(Deserialize, Serialize)]
 pub struct DeclareBackupRequest<'a> {
-    pub files: Vec<RSFile>,
+    pub files: Vec<FileUploadRequest>,
     pub root: PathBuf,
     pub name: &'a str,
 }
 
 impl<'a> DeclareBackupRequest<'a> {
-    pub fn new(name: &'a str, root: PathBuf, files: Vec<RSFile>) -> Self {
+    pub fn new(name: &'a str, root: PathBuf, files: Vec<FileUploadRequest>) -> Self {
         Self { name, root, files }
     }
 }

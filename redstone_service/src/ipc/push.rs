@@ -3,6 +3,7 @@ use std::path::Path;
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
+        api::Endpoints,
         backup::{get_index_file_for_path, IndexFile},
         fs_tree::FSTree,
         ipc::{push::PushRequest, IpcMessage, IpcMessageResponse},
@@ -10,6 +11,7 @@ use redstone_common::{
     },
     web::api::RedstoneClient,
 };
+use reqwest::Method;
 pub async fn handle_push_msg(
     _connection: &mut LocalSocketStream,
     clone_request: &mut PushRequest,
@@ -26,6 +28,9 @@ pub async fn handle_push_msg(
     }
 
     let client = RedstoneClient::new();
+    let res = client
+        .send::<()>(Method::POST, Endpoints::Push.get_url(), &None)
+        .await?;
 
     wrap(IpcMessageResponse {
         message: None,

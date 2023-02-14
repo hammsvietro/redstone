@@ -100,6 +100,12 @@ impl RedstoneClient<Sender> {
     }
 }
 
+impl Default for RedstoneClient<Sender> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<S: HttpSend> RedstoneClient<S> {
     pub fn with_sender(sender: S, jar: Arc<Jar>) -> Self {
         Self {
@@ -186,6 +192,12 @@ impl RedstoneBlockingClient<BlockingSender> {
             jar,
             sender: BlockingSender,
         }
+    }
+}
+
+impl Default for RedstoneBlockingClient<BlockingSender> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

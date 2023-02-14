@@ -7,7 +7,7 @@ use std::sync::Arc;
 pub fn get_jar() -> Arc<Jar> {
     let jar = Jar::default();
     let auth_data = get_auth_data();
-    if let Err(_) = auth_data {
+    if auth_data.is_err() {
         return Arc::new(jar);
     }
     if let Some(auth_data) = auth_data.unwrap() {
