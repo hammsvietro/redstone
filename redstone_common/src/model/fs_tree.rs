@@ -1,6 +1,7 @@
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
+    ffi::OsStr,
     fmt::Debug,
     path::{Path, PathBuf},
 };
@@ -35,6 +36,12 @@ pub struct FSTreeDiff {
     pub new_files: Vec<RSFile>,
     pub changed_files: Vec<RSFile>,
     pub removed_files: Vec<RSFile>,
+}
+
+impl FSTreeDiff {
+    pub fn has_changes(&self) -> bool {
+        (self.new_files.len() + self.changed_files.len() + self.removed_files.len()) > 0
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -108,12 +115,7 @@ impl FSTree {
         let removed_files = old_fs_tree
             .files
             .iter()
-            .filter(|old_file| {
-                self.files
-                    .iter()
-                    .find(|file| old_file.path == file.path)
-                    .is_none()
-            })
+            .filter(|old_file| !self.files.iter().any(|file| old_file.path == file.path))
             .cloned()
             .collect();
 
@@ -159,7 +161,7 @@ fn read_dir(
     {
         let entry = entry?;
         let path = PathBuf::from(entry.path());
-        if path.is_dir() && path != *dir {
+        if path.is_dir() && path != *dir && !is_rs_dir(&path, depth) {
             file_tree_items.extend(read_dir(&path, depth + 1, max_depth, root, ignores)?);
         } else if path.is_file() {
             let file_path = build_relative_file_path(&path, root);
@@ -170,6 +172,10 @@ fn read_dir(
         }
     }
     Ok(file_tree_items)
+}
+
+fn is_rs_dir(path: &Path, depth: u16) -> bool {
+    return depth == 0 && path.file_name() == Some(OsStr::new(".rs"));
 }
 
 fn build_relative_file_path(path: &Path, root: &str) -> String {

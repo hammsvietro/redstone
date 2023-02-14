@@ -29,7 +29,7 @@ fn login<S: BlockingHttpSend>(
     }
 
     if res.status() != reqwest::StatusCode::OK {
-        return Err(RedstoneError::BaseError(String::from(res.text()?)));
+        return Err(RedstoneError::BaseError(res.text()?));
     }
 
     store_cookies(client.jar)?;

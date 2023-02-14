@@ -2,7 +2,9 @@ use std::env::current_dir;
 
 use redstone_common::model::{
     backup::get_index_file_for_path,
-    ipc::{push::PushRequest, IpcMessage, IpcMessageRequest, IpcMessageRequestType},
+    ipc::{
+        push::PushRequest, IpcMessage, IpcMessageRequest, IpcMessageRequestType, IpcMessageResponse,
+    },
     DomainError, RedstoneError, Result,
 };
 
@@ -23,6 +25,9 @@ pub fn run_push_cmd() -> Result<()> {
     });
     let mut connection = stablish_connection()?;
     let response = send_and_receive(&mut connection, request)?;
-    println!("{:?}", response);
+    if response.has_errors() {
+        let error = IpcMessageResponse::from(response).error.unwrap();
+        return Err(error);
+    }
     Ok(())
 }

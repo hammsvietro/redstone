@@ -129,6 +129,7 @@ impl Display for ArgumentError {
 pub enum DomainError {
     BackupAlreadyExists(String),
     BackupDoesntExist(String),
+    NoChanges,
 }
 
 impl Display for DomainError {
@@ -140,6 +141,7 @@ impl Display for DomainError {
             Self::BackupDoesntExist(path) => {
                 format!("Backup doesn't exist in the provided directory: \"{path}\"")
             }
+            Self::NoChanges => "No changes to push".into(),
         };
         write!(f, "{error}")
     }

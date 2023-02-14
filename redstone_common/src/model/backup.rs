@@ -48,7 +48,7 @@ impl IndexFile {
         let metadata = std::fs::metadata(path)?;
         let mut buffer = vec![0_u8; metadata.len() as usize];
         let mut file = std::fs::File::open(path)?;
-        file.read(&mut buffer)?;
+        file.read_exact(&mut buffer)?;
         if buffer.is_empty() {
             return Err(RedstoneError::DomainError(DomainError::BackupDoesntExist(
                 path.to_str().unwrap().into(),
