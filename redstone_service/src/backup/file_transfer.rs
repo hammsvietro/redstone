@@ -28,6 +28,7 @@ pub async fn send_files(
     root_folder: PathBuf,
     progress_emitter: UnboundedSender<u64>,
 ) -> Result<()> {
+    println!("will send files");
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
     let mut bytes_sent: u64 = 0;

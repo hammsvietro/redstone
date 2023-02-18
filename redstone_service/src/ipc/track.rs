@@ -1,7 +1,7 @@
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
-        api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints, FileUploadRequest},
+        api::{DeclareBackupRequest, Endpoints, FileUploadRequest, UploadResponse},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::FSTree,
         ipc::track::TrackRequest,
@@ -116,7 +116,7 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     message
 }
 
-async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBackupResponse> {
+async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<UploadResponse> {
     let client = RedstoneClient::new();
 
     let response = client
@@ -128,7 +128,7 @@ async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBac
 
 fn create_files(
     index_file_path: &PathBuf,
-    declare_response: DeclareBackupResponse,
+    declare_response: UploadResponse,
     track_request: &mut TrackRequest,
     fs_tree: FSTree,
 ) -> Result<IndexFile> {

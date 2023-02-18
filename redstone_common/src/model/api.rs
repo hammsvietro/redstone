@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::web::api::get_api_base_url;
 
-use super::fs_tree::RSFile;
+use super::fs_tree::{FSTreeDiff, RSFile};
 
 pub enum Endpoints {
     Clone,
@@ -17,10 +17,12 @@ impl Endpoints {
     pub fn get_url(&self) -> Url {
         let base_url = get_api_base_url();
         let sufix = match *self {
-            Self::Clone => "/api/download/clone",
-            Self::Declare => "/api/upload/declare",
             Self::Login => "/api/login",
-            Self::Push => "/api/push",
+
+            Self::Clone => "/api/download/clone",
+
+            Self::Declare => "/api/upload/declare",
+            Self::Push => "/api/upload/push",
         };
         base_url.join(sufix).unwrap()
     }
@@ -55,6 +57,46 @@ impl FileUploadRequest {
             operation,
             size,
         }
+    }
+
+    pub fn from_diff(diff: &FSTreeDiff) -> Vec<Self> {
+        let new_files: Vec<Self> = diff
+            .new_files
+            .iter()
+            .clone()
+            .map(|f| Self {
+                path: f.path.to_owned(),
+                sha_256_digest: Some(f.sha_256_digest.to_owned()),
+                operation: FileOperation::Add,
+                size: f.size,
+            })
+            .collect();
+
+        let changed_files: Vec<Self> = diff
+            .changed_files
+            .iter()
+            .clone()
+            .map(|f| Self {
+                path: f.path.to_owned(),
+                sha_256_digest: Some(f.sha_256_digest.to_owned()),
+                operation: FileOperation::Update,
+                size: f.size,
+            })
+            .collect();
+
+        let removed_files: Vec<Self> = diff
+            .removed_files
+            .iter()
+            .clone()
+            .map(|f| Self {
+                path: f.path.to_owned(),
+                sha_256_digest: None,
+                operation: FileOperation::Remove,
+                size: f.size,
+            })
+            .collect();
+
+        [new_files, removed_files, changed_files].concat()
     }
 }
 
@@ -110,11 +152,17 @@ impl CloneRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct DeclareBackupResponse {
+pub struct UploadResponse {
     pub backup: Backup,
     pub files: Vec<File>,
     pub update: Update,
     pub upload_token: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct PushRequest {
+    pub backup_id: String,
+    pub files: Vec<FileUploadRequest>,
 }
 
 /* SERVER ENTITIES */
@@ -131,6 +179,12 @@ pub struct File {
     pub id: String,
     pub path: String,
     pub sha256_checksum: String,
+    pub last_update: FileUpdate,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct FileUpdate {
+    operation: FileOperation,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
