@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
@@ -14,23 +12,19 @@ use redstone_common::{
     web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
+use tokio::sync::mpsc::{self, UnboundedReceiver};
+
+use crate::backup::file_transfer::send_files;
 pub async fn handle_push_msg(
     _connection: &mut LocalSocketStream,
     push_request: &mut IpcPushRequest,
 ) -> Result<IpcMessage> {
-    let index_file = get_index_file(&push_request.path).await?;
-    let client = RedstoneClient::new();
+    let index_file_path = get_index_file_for_path(&push_request.path);
+    let mut index_file = IndexFile::from_file(&index_file_path)?;
 
-    let latest_update_response = client
-        .send::<()>(
-            Method::GET,
-            Endpoints::FetchUpdate(index_file.backup.id.to_owned()).get_url(),
-            &None,
-        )
-        .await?;
-
-    let latest_update: Update = handle_response(latest_update_response).await?;
-    // update_index_file()?;
+    let latest_update = check_latest_update(index_file.backup.id.to_owned()).await?;
+    index_file.latest_update = latest_update.clone();
+    index_file.save(&index_file_path)?;
 
     if latest_update.hash != index_file.current_update.hash {
         return wrap(IpcMessageResponse {
@@ -42,6 +36,7 @@ pub async fn handle_push_msg(
 
     let fs_tree = FSTree::build(push_request.path.clone(), None)?;
     let diff = fs_tree.diff(&index_file.last_fs_tree)?;
+    let total_size = diff.total_size();
     if !diff.has_changes() {
         return wrap(IpcMessageResponse {
             message: None,
@@ -54,11 +49,34 @@ pub async fn handle_push_msg(
         backup_id: index_file.backup.id.to_owned(),
         files: FileUploadRequest::from_diff(&diff),
     };
+    let client = RedstoneClient::new();
     let res = client
         .send(Method::POST, Endpoints::Push.get_url(), &Some(request))
         .await?;
 
-    let _push_response: UploadResponse = handle_response(res).await?;
+    let push_response: UploadResponse = handle_response(res).await?;
+    let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
+    let (_, send_files_result) = tokio::join!(
+        send_progress(&mut rx, total_size),
+        send_files(
+            &push_response.files,
+            &push_response.upload_token,
+            push_request.path.clone(),
+            tx,
+        )
+    );
+
+    send_files_result?;
+
+    let latest_update = check_latest_update(index_file.backup.id.to_owned()).await?;
+    let index_file = IndexFile::new(
+        push_response.backup.clone(),
+        latest_update.clone(),
+        latest_update,
+        index_file.config,
+        fs_tree.clone(),
+    );
+    index_file.save(&index_file_path)?;
 
     wrap(IpcMessageResponse {
         message: None,
@@ -67,11 +85,27 @@ pub async fn handle_push_msg(
     })
 }
 
-async fn get_index_file(path: &Path) -> Result<IndexFile> {
-    let index_path = get_index_file_for_path(path);
-    IndexFile::from_file(&index_path)
-}
-
 fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
     Ok(IpcMessage::from(response))
+}
+
+async fn send_progress(_progress_receiver: &mut UnboundedReceiver<u64>, _total_size: u64) {
+    // while let Some(sent) = progress_receiver.recv().await {
+    //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
+    //  // send to cli
+    // }
+}
+
+async fn check_latest_update(backup_id: String) -> Result<Update> {
+    let client = RedstoneClient::new();
+    let latest_update_response = client
+        .send::<()>(
+            Method::GET,
+            Endpoints::FetchUpdate(backup_id.to_owned()).get_url(),
+            &None,
+        )
+        .await?;
+
+    let latest_update: Update = handle_response(latest_update_response).await?;
+    Ok(latest_update)
 }

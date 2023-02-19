@@ -1,5 +1,5 @@
 use std::{
-    io::Read,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -55,6 +55,16 @@ impl IndexFile {
             )));
         }
         Ok(bincode::deserialize(&buffer)?)
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)?;
+
+        Ok(file.write_all(&bincode::serialize(self)?)?)
     }
 }
 

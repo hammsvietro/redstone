@@ -187,7 +187,7 @@ pub struct File {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct FileUpdate {
-    operation: FileOperation,
+    pub operation: FileOperation,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

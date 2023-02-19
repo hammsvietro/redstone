@@ -42,6 +42,18 @@ impl FSTreeDiff {
     pub fn has_changes(&self) -> bool {
         (self.new_files.len() + self.changed_files.len() + self.removed_files.len()) > 0
     }
+
+    pub fn total_size(&self) -> u64 {
+        [
+            self.new_files.clone(),
+            self.changed_files.clone(),
+            self.removed_files.clone(),
+        ]
+        .concat()
+        .iter()
+        .map(|file| file.size)
+        .sum()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
