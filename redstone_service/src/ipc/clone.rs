@@ -11,7 +11,7 @@ use redstone_common::{
         Result,
     },
     util::bytes_to_human_readable,
-    web::api::{jar::get_jar, RedstoneClient},
+    web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
 use tokio::io::AsyncWriteExt;
@@ -22,13 +22,13 @@ pub async fn handle_clone_msg(
     connection: &mut LocalSocketStream,
     clone_request: &mut CloneRequest,
 ) -> Result<IpcMessage> {
-    let client = RedstoneClient::new(get_jar()?);
+    let client = RedstoneClient::new();
     let request = &Some(ApiCloneRequest::new(clone_request.backup_name.clone()));
     let response = client
         .send(Method::POST, Endpoints::Clone.get_url(), request)
         .await?;
 
-    let clone_response: CloneResponse = response.json().await?;
+    let clone_response: CloneResponse = handle_response(response).await?;
 
     let conflicting_files =
         get_conflicting_files(&clone_request.path, &clone_response.files_to_download)?;
@@ -56,7 +56,9 @@ pub async fn handle_clone_msg(
     )
     .await?;
 
-    write_index_file(clone_request.borrow_mut(), &clone_response).await?;
+    let fs_tree = FSTree::build(clone_request.path.clone(), None)?;
+
+    write_index_file(clone_request.borrow_mut(), &clone_response, fs_tree).await?;
 
     Ok(IpcMessageResponse {
         message: None,
@@ -91,6 +93,7 @@ fn get_confirmation_request_message(conflicting_files: Vec<RSFile>, total_bytes:
 async fn write_index_file(
     clone_request: &mut CloneRequest,
     clone_response: &CloneResponse,
+    fs_tree: FSTree,
 ) -> Result<()> {
     let backup_config = BackupConfig::new(None, false);
     let index_file = IndexFile::new(
@@ -98,6 +101,7 @@ async fn write_index_file(
         clone_response.update.clone(),
         clone_response.update.clone(),
         backup_config,
+        fs_tree,
     );
     let index_file_path = get_index_file_for_path(&clone_request.path);
     if !index_file_path.exists() {

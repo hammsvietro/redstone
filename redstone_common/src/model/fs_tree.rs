@@ -1,6 +1,7 @@
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
+    ffi::OsStr,
     fmt::Debug,
     path::{Path, PathBuf},
 };
@@ -30,16 +31,28 @@ impl RSFile {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct RSFolder {
-    pub path: String,
-    pub items: Vec<RSFile>,
-    pub depth: u16,
+#[derive(Debug)]
+pub struct FSTreeDiff {
+    pub new_files: Vec<RSFile>,
+    pub changed_files: Vec<RSFile>,
+    pub removed_files: Vec<RSFile>,
 }
 
-impl RSFolder {
-    pub fn new(path: String, items: Vec<RSFile>, depth: u16) -> Self {
-        Self { path, items, depth }
+impl FSTreeDiff {
+    pub fn has_changes(&self) -> bool {
+        (self.new_files.len() + self.changed_files.len() + self.removed_files.len()) > 0
+    }
+
+    pub fn total_size(&self) -> u64 {
+        [
+            self.new_files.clone(),
+            self.changed_files.clone(),
+            self.removed_files.clone(),
+        ]
+        .concat()
+        .iter()
+        .map(|file| file.size)
+        .sum()
     }
 }
 
@@ -89,6 +102,41 @@ impl FSTree {
             .collect();
         conflicting_files
     }
+
+    pub fn diff(&self, old_fs_tree: &Self) -> Result<FSTreeDiff> {
+        let mut new_files = vec![];
+        let mut changed_files = vec![];
+
+        for file in self.files.clone() {
+            let old_file = old_fs_tree
+                .files
+                .iter()
+                .find(|old_file| old_file.path == file.path);
+
+            if old_file.is_none() {
+                new_files.push(file);
+                continue;
+            }
+            let old_file = old_file.unwrap();
+            if file.sha_256_digest != old_file.sha_256_digest {
+                changed_files.push(file);
+                continue;
+            }
+        }
+
+        let removed_files = old_fs_tree
+            .files
+            .iter()
+            .filter(|old_file| !self.files.iter().any(|file| old_file.path == file.path))
+            .cloned()
+            .collect();
+
+        Ok(FSTreeDiff {
+            new_files,
+            changed_files,
+            removed_files,
+        })
+    }
 }
 
 fn read_dir(
@@ -125,7 +173,7 @@ fn read_dir(
     {
         let entry = entry?;
         let path = PathBuf::from(entry.path());
-        if path.is_dir() && path != *dir {
+        if path.is_dir() && path != *dir && !is_rs_dir(&path, depth) {
             file_tree_items.extend(read_dir(&path, depth + 1, max_depth, root, ignores)?);
         } else if path.is_file() {
             let file_path = build_relative_file_path(&path, root);
@@ -136,6 +184,10 @@ fn read_dir(
         }
     }
     Ok(file_tree_items)
+}
+
+fn is_rs_dir(path: &Path, depth: u16) -> bool {
+    return depth == 0 && path.file_name() == Some(OsStr::new(".rs"));
 }
 
 fn build_relative_file_path(path: &Path, root: &str) -> String {
@@ -159,6 +211,43 @@ mod tests {
     use std::{path::PathBuf, str::FromStr};
 
     use super::FSTree;
+
+    #[test]
+    fn file_diffing() {
+        let path = PathBuf::from_str("./test-data").unwrap();
+        let old_fs_tree = FSTree::build(path, None).unwrap();
+        let mut fs_tree = old_fs_tree.clone();
+        let removed_file = fs_tree.files.pop().unwrap();
+        println!("removed: {removed_file:?}");
+        let mut changed_file = &mut fs_tree.files[0];
+        changed_file.sha_256_digest =
+            String::from("982bc87271bad526f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f5e");
+        let changed_file = changed_file.clone();
+        let new_file = RSFile::new(
+            "new_file.elm".into(),
+            "982bc87271bad526f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f5e".into(),
+            0,
+            123,
+        );
+        fs_tree.files.push(new_file.clone());
+
+        println!("\n");
+        println!("old:");
+        println!("{old_fs_tree:?}");
+
+        println!("\n");
+        println!("new:");
+        println!("{fs_tree:?}");
+
+        let files_diff = fs_tree.diff(&old_fs_tree).unwrap();
+        println!("\n");
+        println!("diff:");
+        println!("{files_diff:?}");
+
+        assert_eq!(files_diff.new_files, vec![new_file]);
+        assert_eq!(files_diff.changed_files, vec![changed_file]);
+        assert_eq!(files_diff.removed_files, vec![removed_file]);
+    }
 
     #[test]
     fn scans_a_directory_recursively() {

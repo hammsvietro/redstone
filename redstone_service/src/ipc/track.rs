@@ -1,14 +1,14 @@
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
-        api::{DeclareBackupRequest, DeclareBackupResponse, Endpoints},
+        api::{DeclareBackupRequest, Endpoints, FileUploadRequest, UploadResponse},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::FSTree,
         ipc::track::TrackRequest,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse},
         DomainError, RedstoneError, Result,
     },
-    web::api::{handle_response, jar::get_jar, RedstoneClient},
+    web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
 use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
@@ -29,7 +29,7 @@ pub async fn handle_track_msg(
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: Some(RedstoneError::DomainError(
-                DomainError::DirectoryAlreadyBeingTracked(path),
+                DomainError::BackupAlreadyExists(path),
             )),
             message: None,
         });
@@ -53,8 +53,14 @@ pub async fn handle_track_msg(
 
     let total_size = fs_tree.total_size();
     let root_folder = fs_tree.root.clone();
+    let files = fs_tree
+        .files
+        .iter()
+        .map(|file| FileUploadRequest::from(file.clone()))
+        .collect();
+
     let declare_request =
-        DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root, fs_tree.files);
+        DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root.clone(), files);
 
     let declare_response = declare(&declare_request).await?;
     let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
@@ -71,6 +77,7 @@ pub async fn handle_track_msg(
         &index_file_path,
         declare_response,
         track_request.borrow_mut(),
+        fs_tree,
     )?;
     wrap(IpcMessageResponse {
         keep_connection: false,
@@ -109,9 +116,8 @@ fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
     message
 }
 
-async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBackupResponse> {
-    let cookie_jar = get_jar()?;
-    let client = RedstoneClient::new(cookie_jar);
+async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<UploadResponse> {
+    let client = RedstoneClient::new();
 
     let response = client
         .send(Method::POST, Endpoints::Declare.get_url(), &Some(request))
@@ -122,8 +128,9 @@ async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<DeclareBac
 
 fn create_files(
     index_file_path: &PathBuf,
-    declare_response: DeclareBackupResponse,
+    declare_response: UploadResponse,
     track_request: &mut TrackRequest,
+    fs_tree: FSTree,
 ) -> Result<IndexFile> {
     let parent_folders = index_file_path.parent();
     if let Some(folder_path) = parent_folders {
@@ -136,6 +143,7 @@ fn create_files(
         declare_response.update.clone(),
         declare_response.update,
         config,
+        fs_tree,
     );
     index_file.write_all(&bincode::serialize(&index_file_content)?)?;
     Ok(index_file_content)

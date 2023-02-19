@@ -10,8 +10,3 @@ pub struct TrackRequest {
     pub sync_every: Option<String>,
     pub watch: bool,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TrackMessageResponse {
-    pub data: String,
-}

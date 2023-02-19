@@ -6,7 +6,7 @@ use std::{
 use redstone_common::{
     constants::TCP_FILE_CHUNK_SIZE,
     model::{
-        api::File as RSFile,
+        api::{File as RSFile, FileOperation},
         tcp::{TcpMessage, TcpMessageResponse, TcpMessageResponseStatus},
         RedstoneError, Result,
     },
@@ -23,7 +23,7 @@ use tokio::{
 };
 
 pub async fn send_files(
-    files: &Vec<RSFile>,
+    files: &[RSFile],
     upload_token: &String,
     root_folder: PathBuf,
     progress_emitter: UnboundedSender<u64>,
@@ -31,7 +31,11 @@ pub async fn send_files(
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
     let mut bytes_sent: u64 = 0;
-    for file in files {
+    for file in files
+        .iter()
+        .filter(|file| file.last_update.operation != FileOperation::Remove)
+        .collect::<Vec<&RSFile>>()
+    {
         send_file(
             &mut stream,
             file,
@@ -45,15 +49,15 @@ pub async fn send_files(
     send_commit_msg(&mut stream, upload_token).await
 }
 
-pub async fn download_files(
-    root: PathBuf,
-    files: &Vec<RSFile>,
-    download_token: String,
-) -> Result<()> {
+pub async fn download_files(root: PathBuf, files: &[RSFile], download_token: String) -> Result<()> {
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
     let mut _bytes_received: u64 = 0;
-    for file in files {
+    for file in files
+        .iter()
+        .filter(|file| file.last_update.operation != FileOperation::Remove)
+        .collect::<Vec<&RSFile>>()
+    {
         download_file(
             &mut stream,
             file,

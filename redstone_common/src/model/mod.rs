@@ -127,15 +127,28 @@ impl Display for ArgumentError {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DomainError {
-    DirectoryAlreadyBeingTracked(String),
+    BackupAlreadyExists(String),
+    BackupDoesntExist(String),
+    NotInLatestUpdate,
+    NoChanges,
 }
 
 impl Display for DomainError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error: String = match self {
-            Self::DirectoryAlreadyBeingTracked(path) => {
-                format!("Directory is already being tracked: \"{path}\"")
+            Self::BackupAlreadyExists(path) => {
+                format!("Backup already exists in the provided directory: \"{path}\"")
             }
+            Self::BackupDoesntExist(path) => {
+                format!("Backup doesn't exist in the provided directory: \"{path}\"")
+            }
+            Self::NoChanges => "No changes to push".into(),
+            Self::NotInLatestUpdate => "\
+            \nThere's a newer version of this backup.\
+            \n\nPlease, pull the changes with \"redstone pull\" before pushing.\
+            \nBeware, pulling data might overwrite your current changes\
+            "
+            .into(),
         };
         write!(f, "{error}")
     }

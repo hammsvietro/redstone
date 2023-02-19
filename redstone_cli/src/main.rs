@@ -2,15 +2,13 @@ mod cli;
 mod ipc;
 mod utils;
 
+use colored::Colorize;
 use redstone_common::{config::assert_app_data_folder_is_created, model::Result};
 
 fn main() -> Result<()> {
     assert_app_data_folder_is_created()?;
-    match cli::input() {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            eprintln!("{err}");
-            Ok(())
-        }
+    if let Err(err) = cli::input() {
+        eprintln!("{}", err.to_string().red());
     }
+    Ok(())
 }
