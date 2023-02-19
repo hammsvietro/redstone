@@ -129,6 +129,7 @@ impl Display for ArgumentError {
 pub enum DomainError {
     BackupAlreadyExists(String),
     BackupDoesntExist(String),
+    NotInLatestUpdate,
     NoChanges,
 }
 
@@ -142,6 +143,12 @@ impl Display for DomainError {
                 format!("Backup doesn't exist in the provided directory: \"{path}\"")
             }
             Self::NoChanges => "No changes to push".into(),
+            Self::NotInLatestUpdate => "\
+            \nThere's a newer version of this backup.\
+            \n\nPlease, pull the changes with \"redstone pull\" before pushing.\
+            \nBeware, pulling data might overwrite your current changes\
+            "
+            .into(),
         };
         write!(f, "{error}")
     }

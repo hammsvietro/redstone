@@ -9,6 +9,7 @@ use super::fs_tree::{FSTreeDiff, RSFile};
 pub enum Endpoints {
     Clone,
     Declare,
+    FetchUpdate(String), // backup_id
     Login,
     Push,
 }
@@ -16,15 +17,17 @@ pub enum Endpoints {
 impl Endpoints {
     pub fn get_url(&self) -> Url {
         let base_url = get_api_base_url();
-        let sufix = match *self {
-            Self::Login => "/api/login",
+        let sufix: String = match self {
+            Self::Login => "/api/login".to_owned(),
 
-            Self::Clone => "/api/download/clone",
+            Self::Clone => "/api/download/clone".to_owned(),
 
-            Self::Declare => "/api/upload/declare",
-            Self::Push => "/api/upload/push",
+            Self::Declare => "/api/upload/declare".to_owned(),
+            Self::Push => "/api/upload/push".to_owned(),
+
+            Self::FetchUpdate(backup_id) => format!("/api/update/fetch/{}", backup_id.to_owned()),
         };
-        base_url.join(sufix).unwrap()
+        base_url.join(&sufix).unwrap()
     }
 }
 
@@ -189,6 +192,6 @@ pub struct FileUpdate {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Update {
-    hash: String,
-    message: String,
+    pub hash: String,
+    pub message: String,
 }
