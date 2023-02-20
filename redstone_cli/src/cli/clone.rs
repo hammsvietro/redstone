@@ -38,13 +38,8 @@ pub fn run_clone_cmd(clone_args: CloneArgs) -> Result<()> {
         return Err(error);
     }
     let confirmation_request: ConfirmationRequest = ConfirmationRequest::from(response);
-    let confirmation_response = handle_confirmation_request(&confirmation_request)?;
-    if !confirmation_response.keep_connection {
-        if let Some(err) = confirmation_response.error {
-            return Err(err);
-        }
-        return Ok(());
-    }
-    send_and_receive(&mut connection, IpcMessage::from(confirmation_response))?;
+    let confirmation_response =
+        handle_confirmation_request(&mut connection, &confirmation_request)?;
+    send_and_receive(&mut connection, confirmation_response)?;
     Ok(())
 }

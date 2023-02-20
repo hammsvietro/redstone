@@ -1845,6 +1845,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "bson",
+ "colored",
  "data-encoding",
  "dirs",
  "ignore",

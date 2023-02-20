@@ -3,6 +3,7 @@ pub mod models;
 mod auth;
 mod clone;
 mod push;
+mod status;
 mod track;
 
 use clap::Parser;
@@ -17,5 +18,6 @@ pub fn input() -> redstone_common::model::Result<()> {
         Commands::Clone(clone_args) => clone::run_clone_cmd(clone_args),
         Commands::Push => push::run_push_cmd(),
         Commands::Track(track_args) => track::run_track_cmd(track_args),
+        Commands::Status => status::run_status_cmd(),
     }
 }

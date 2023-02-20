@@ -1,3 +1,5 @@
+use std::borrow::BorrowMut;
+
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
@@ -6,7 +8,10 @@ use redstone_common::{
         },
         backup::{get_index_file_for_path, IndexFile},
         fs_tree::FSTree,
-        ipc::{push::PushRequest as IpcPushRequest, IpcMessage, IpcMessageResponse},
+        ipc::{
+            push::PushRequest as IpcPushRequest, ConfirmationRequest, IpcMessage,
+            IpcMessageResponse,
+        },
         DomainError, RedstoneError, Result,
     },
     web::api::{handle_response, RedstoneClient},
@@ -15,8 +20,10 @@ use reqwest::Method;
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 use crate::backup::file_transfer::send_files;
+
+use super::socket_loop::prompt_action_confirmation;
 pub async fn handle_push_msg(
-    _connection: &mut LocalSocketStream,
+    connection: &mut LocalSocketStream,
     push_request: &mut IpcPushRequest,
 ) -> Result<IpcMessage> {
     let index_file_path = get_index_file_for_path(&push_request.path);
@@ -42,6 +49,21 @@ pub async fn handle_push_msg(
             message: None,
             keep_connection: false,
             error: Some(RedstoneError::DomainError(DomainError::NoChanges)),
+        });
+    }
+    let confirmation_request = ConfirmationRequest {
+        message: format!(
+            "The following changes will be made:\n{}",
+            diff.get_changes_message()
+        ),
+    };
+    let confirmation_result =
+        prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await?;
+    if !confirmation_result.has_accepted {
+        return wrap(IpcMessageResponse {
+            keep_connection: false,
+            error: None,
+            message: None,
         });
     }
 

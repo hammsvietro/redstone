@@ -16,9 +16,17 @@ pub fn send_and_receive(
     conn: &mut LocalSocketStream,
     ipc_message: IpcMessage,
 ) -> Result<IpcMessage> {
-    let mut buffer = [0; IPC_BUFFER_SIZE];
+    send(conn, ipc_message)?;
+    receive(conn)
+}
+
+fn send(conn: &mut LocalSocketStream, ipc_message: IpcMessage) -> Result<()> {
     let encoded_message = bincode::serialize(&ipc_message)?;
-    conn.write_all(&encoded_message)?;
+    Ok(conn.write_all(&encoded_message)?)
+}
+
+fn receive(conn: &mut LocalSocketStream) -> Result<IpcMessage> {
+    let mut buffer = [0; IPC_BUFFER_SIZE];
     let mut buff_reader = BufReader::new(conn.borrow_mut());
     let _ = buff_reader.read(buffer.borrow_mut())?;
     Ok(bincode::deserialize::<IpcMessage>(buffer.borrow_mut())?)

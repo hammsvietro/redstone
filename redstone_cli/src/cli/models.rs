@@ -20,6 +20,9 @@ pub enum Commands {
 
     /// Recursively scan a directory and create a backup with all the files scanned
     Track(TrackArgs),
+
+    /// Check for changes in the current bakcup
+    Status,
 }
 
 #[derive(Debug, Args)]

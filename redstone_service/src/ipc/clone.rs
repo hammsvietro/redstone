@@ -36,10 +36,7 @@ pub async fn handle_clone_msg(
         message: get_confirmation_request_message(conflicting_files, clone_response.total_bytes),
     };
     let confirmation_result =
-        match prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await {
-            Ok(confirmation_response) => confirmation_response,
-            Err(err) => return Err(err),
-        };
+        prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await?;
     if !confirmation_result.has_accepted {
         return Ok(IpcMessageResponse {
             message: None,
@@ -86,7 +83,6 @@ fn get_confirmation_request_message(conflicting_files: Vec<RSFile>, total_bytes:
             }
             message += &format!("{}\n", file.path);
         });
-    message += "\nDo you wish to continue?";
     message
 }
 

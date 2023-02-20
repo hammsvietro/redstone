@@ -1,3 +1,4 @@
+use colored::Colorize;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -31,7 +32,7 @@ impl RSFile {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FSTreeDiff {
     pub new_files: Vec<RSFile>,
     pub changed_files: Vec<RSFile>,
@@ -53,6 +54,55 @@ impl FSTreeDiff {
         .iter()
         .map(|file| file.size)
         .sum()
+    }
+
+    pub fn get_changes_message(&self) -> String {
+        let mut message = String::new();
+
+        if !self.has_changes() {
+            return String::from("\nNo changes.\n");
+        }
+
+        let new_files = self
+            .new_files
+            .iter()
+            .cloned()
+            .map(|f| f.path)
+            .collect::<Vec<String>>();
+        if !new_files.is_empty() {
+            message += &"\nAdded:\n".green();
+            for path in new_files {
+                message += &format!("{path}\n").green();
+            }
+        }
+
+        let updated_files = self
+            .changed_files
+            .iter()
+            .cloned()
+            .map(|f| f.path)
+            .collect::<Vec<String>>();
+
+        if !updated_files.is_empty() {
+            message += &"\nChanged:\n".purple();
+            for path in updated_files {
+                message += &format!("{}\n", path.purple());
+            }
+        }
+        let removed_files = self
+            .removed_files
+            .iter()
+            .cloned()
+            .map(|f| f.path)
+            .collect::<Vec<String>>();
+        if !removed_files.is_empty() {
+            message += &"\nRemoved:\n".red();
+            for path in removed_files {
+                message += &format!("{}\n", path.red());
+            }
+        }
+
+        message
     }
 }
 
@@ -218,7 +268,6 @@ mod tests {
         let old_fs_tree = FSTree::build(path, None).unwrap();
         let mut fs_tree = old_fs_tree.clone();
         let removed_file = fs_tree.files.pop().unwrap();
-        println!("removed: {removed_file:?}");
         let mut changed_file = &mut fs_tree.files[0];
         changed_file.sha_256_digest =
             String::from("982bc87271bad526f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f5e");
@@ -231,18 +280,7 @@ mod tests {
         );
         fs_tree.files.push(new_file.clone());
 
-        println!("\n");
-        println!("old:");
-        println!("{old_fs_tree:?}");
-
-        println!("\n");
-        println!("new:");
-        println!("{fs_tree:?}");
-
         let files_diff = fs_tree.diff(&old_fs_tree).unwrap();
-        println!("\n");
-        println!("diff:");
-        println!("{files_diff:?}");
 
         assert_eq!(files_diff.new_files, vec![new_file]);
         assert_eq!(files_diff.changed_files, vec![changed_file]);

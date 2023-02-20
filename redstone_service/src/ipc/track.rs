@@ -3,7 +3,7 @@ use redstone_common::{
     model::{
         api::{DeclareBackupRequest, Endpoints, FileUploadRequest, UploadResponse},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
-        fs_tree::FSTree,
+        fs_tree::{FSTree, FSTreeDiff},
         ipc::track::TrackRequest,
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse},
         DomainError, RedstoneError, Result,
@@ -11,7 +11,7 @@ use redstone_common::{
     web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
-use std::{borrow::BorrowMut, collections::HashSet, io::Write, path::PathBuf};
+use std::{borrow::BorrowMut, io::Write, path::PathBuf};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 use crate::backup::file_transfer::send_files;
@@ -34,15 +34,9 @@ pub async fn handle_track_msg(
             message: None,
         });
     }
-
-    let confirmation_request = ConfirmationRequest {
-        message: get_confirmation_request_message(&fs_tree),
-    };
+    let confirmation_request = get_confirmation_message(&fs_tree);
     let confirmation_result =
-        match prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await {
-            Ok(confirmation_response) => confirmation_response,
-            Err(err) => return Err(err),
-        };
+        prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await?;
     if !confirmation_result.has_accepted {
         return wrap(IpcMessageResponse {
             keep_connection: false,
@@ -97,25 +91,6 @@ async fn send_progress(_progress_receiver: &mut UnboundedReceiver<u64>, _total_s
     // }
 }
 
-fn get_confirmation_request_message(fs_tree: &FSTree) -> String {
-    let mut message = String::from("By continuing, you will recursively backup the following:\n");
-    let mut first_depth_file_structure: HashSet<String> = HashSet::new();
-    for item in fs_tree.get_first_depth() {
-        let file_path = item.path.as_str();
-        let formatted_path = match file_path.split_once('/') {
-            None => String::from(file_path),
-            Some((before, _after)) => String::from(before) + "/",
-        };
-        first_depth_file_structure.insert(formatted_path);
-    }
-    for file_path in first_depth_file_structure {
-        message += &file_path;
-        message += "\n"
-    }
-    message += "\nDo you wish to continue?";
-    message
-}
-
 async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<UploadResponse> {
     let client = RedstoneClient::new();
 
@@ -124,6 +99,19 @@ async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<UploadResp
         .await?;
 
     handle_response(response).await
+}
+fn get_confirmation_message(fs_tree: &FSTree) -> ConfirmationRequest {
+    let diff = FSTreeDiff {
+        new_files: fs_tree.files.clone(),
+        ..Default::default()
+    };
+
+    let message = format!(
+        "By continuing, you will recursively backup the following:\n{}",
+        diff.get_changes_message()
+    );
+
+    ConfirmationRequest { message }
 }
 
 fn create_files(

@@ -131,6 +131,7 @@ pub enum DomainError {
     BackupDoesntExist(String),
     NotInLatestUpdate,
     NoChanges,
+    ConfirmationNotAccepted,
 }
 
 impl Display for DomainError {
@@ -149,6 +150,7 @@ impl Display for DomainError {
             \nBeware, pulling data might overwrite your current changes\
             "
             .into(),
+            Self::ConfirmationNotAccepted => "".into(),
         };
         write!(f, "{error}")
     }
