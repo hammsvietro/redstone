@@ -5,7 +5,7 @@ use redstone_common::{
     model::{
         api::{DownloadResponse, Endpoints, PullRequest as ApiPullRequest},
         backup::{get_index_file_for_path, IndexFile},
-        fs_tree::RSFile,
+        fs_tree::FSTree,
         ipc::{pull::PullRequest, ConfirmationRequest, IpcMessage, IpcMessageResponse},
         DomainError, RedstoneError, Result,
     },
@@ -72,6 +72,7 @@ pub async fn handle_pull_msg(
     .await?;
 
     index_file.current_update = download_response.update.clone();
+    index_file.last_fs_tree = FSTree::build(pull_request.path.clone(), None)?;
     index_file.save(&index_file_path)?;
 
     wrap(IpcMessageResponse {

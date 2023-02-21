@@ -41,8 +41,6 @@ pub async fn handle_push_msg(
 
     let fs_tree = FSTree::build(push_request.path.clone(), None)?;
     let diff = fs_tree.diff(&index_file.last_fs_tree)?;
-    println!("DIFF:");
-    println!("{:?}", diff);
     let total_size = diff.total_size();
     if !diff.has_changes() {
         return wrap(IpcMessageResponse {
