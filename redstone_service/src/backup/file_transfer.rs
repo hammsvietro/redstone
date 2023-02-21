@@ -79,6 +79,7 @@ pub async fn download_files(root: PathBuf, files: &[RSFile], download_token: Str
         );
         return Err(RedstoneError::BaseError(error));
     }
+    delete_removed_files(&root, files);
     Ok(())
 }
 
@@ -185,4 +186,14 @@ async fn download_file(
     }
     println!("downloaded {}", file.path);
     Ok(())
+}
+
+fn delete_removed_files(root: &Path, files: &[RSFile]) {
+    files
+        .iter()
+        .filter(|f| f.last_update.operation == FileOperation::Remove)
+        .for_each(|f| {
+            let path = root.join(&f.path);
+            std::fs::remove_file(path).unwrap();
+        });
 }

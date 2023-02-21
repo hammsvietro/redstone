@@ -3,9 +3,7 @@ use std::borrow::BorrowMut;
 use interprocess::local_socket::LocalSocketStream;
 use redstone_common::{
     model::{
-        api::{
-            Endpoints, FileUploadRequest, PushRequest as ApiPushRequest, Update, UploadResponse,
-        },
+        api::{Endpoints, FileUploadRequest, PushRequest as ApiPushRequest, UploadResponse},
         backup::{get_index_file_for_path, IndexFile},
         fs_tree::FSTree,
         ipc::{
@@ -19,7 +17,7 @@ use redstone_common::{
 use reqwest::Method;
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
-use crate::backup::file_transfer::send_files;
+use crate::{api::update::check_latest_update, backup::file_transfer::send_files};
 
 use super::socket_loop::prompt_action_confirmation;
 pub async fn handle_push_msg(
@@ -43,6 +41,8 @@ pub async fn handle_push_msg(
 
     let fs_tree = FSTree::build(push_request.path.clone(), None)?;
     let diff = fs_tree.diff(&index_file.last_fs_tree)?;
+    println!("DIFF:");
+    println!("{:?}", diff);
     let total_size = diff.total_size();
     if !diff.has_changes() {
         return wrap(IpcMessageResponse {
@@ -116,18 +116,4 @@ async fn send_progress(_progress_receiver: &mut UnboundedReceiver<u64>, _total_s
     //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
     //  // send to cli
     // }
-}
-
-async fn check_latest_update(backup_id: String) -> Result<Update> {
-    let client = RedstoneClient::new();
-    let latest_update_response = client
-        .send::<()>(
-            Method::GET,
-            Endpoints::FetchUpdate(backup_id.to_owned()).get_url(),
-            &None,
-        )
-        .await?;
-
-    let latest_update: Update = handle_response(latest_update_response).await?;
-    Ok(latest_update)
 }

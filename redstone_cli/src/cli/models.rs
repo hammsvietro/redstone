@@ -23,6 +23,9 @@ pub enum Commands {
 
     /// Check for changes in the current bakcup
     Status,
+
+    /// Pull the latest changes from the server
+    Pull,
 }
 
 #[derive(Debug, Args)]

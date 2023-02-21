@@ -1,10 +1,11 @@
 pub mod clone;
+pub mod pull;
 pub mod push;
 pub mod track;
 
-use self::clone::CloneRequest;
 use self::push::PushRequest;
 use self::track::TrackRequest;
+use self::{clone::CloneRequest, pull::PullRequest};
 use super::RedstoneError;
 
 use serde::{Deserialize, Serialize};
@@ -88,6 +89,7 @@ pub enum IpcMessageRequestType {
     CloneRequest(CloneRequest),
     ConfirmationRequest(ConfirmationRequest),
     PushRequest(PushRequest),
+    PullRequest(PullRequest),
     TrackRequest(TrackRequest),
 }
 
