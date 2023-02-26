@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use async_recursion::async_recursion;
 use redstone_common::{
     constants::TCP_FILE_CHUNK_SIZE,
     model::{
@@ -79,7 +80,7 @@ pub async fn download_files(root: PathBuf, files: &[RSFile], download_token: Str
         );
         return Err(RedstoneError::BaseError(error));
     }
-    delete_removed_files(&root, files);
+    delete_removed_files(&root, files).await?;
     Ok(())
 }
 
@@ -188,12 +189,37 @@ async fn download_file(
     Ok(())
 }
 
-fn delete_removed_files(root: &Path, files: &[RSFile]) {
-    files
+async fn delete_removed_files(root: &Path, files: &[RSFile]) -> Result<()> {
+    for file in files
         .iter()
         .filter(|f| f.last_update.operation == FileOperation::Remove)
-        .for_each(|f| {
-            let path = root.join(&f.path);
-            std::fs::remove_file(path).unwrap();
-        });
+    {
+        let path = root.join(&file.path);
+        tokio::fs::remove_file(&path).await?;
+    }
+    delete_empty_folders(root).await
+}
+
+#[async_recursion]
+async fn delete_empty_folders(path: &Path) -> Result<()> {
+    if let Ok(mut entries) = tokio::fs::read_dir(path).await {
+        while let Some(entry) = entries.next_entry().await? {
+            let entry_path = entry.path();
+            if entry_path.is_dir() {
+                // Recursively delete empty subfolders
+                delete_empty_folders(&entry_path).await?;
+
+                // Delete current folder if it's empty
+                if tokio::fs::read_dir(&entry_path)
+                    .await?
+                    .next_entry()
+                    .await?
+                    .is_none()
+                {
+                    tokio::fs::remove_dir(&entry_path).await?;
+                }
+            }
+        }
+    }
+    Ok(())
 }
