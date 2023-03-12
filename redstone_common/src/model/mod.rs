@@ -130,6 +130,7 @@ pub enum DomainError {
     BackupAlreadyExists(String),
     BackupDoesntExist(String),
     NotInLatestUpdate,
+    AlreadyInLatestUpdate,
     NoChanges,
     ConfirmationNotAccepted,
 }
@@ -144,6 +145,10 @@ impl Display for DomainError {
                 format!("Backup doesn't exist in the provided directory: \"{path}\"")
             }
             Self::NoChanges => "No changes to push".into(),
+            Self::AlreadyInLatestUpdate => "\
+            \nAlready in latest update.\
+            "
+            .into(),
             Self::NotInLatestUpdate => "\
             \nThere's a newer version of this backup.\
             \n\nPlease, pull the changes with \"redstone pull\" before pushing.\

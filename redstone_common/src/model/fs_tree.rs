@@ -70,9 +70,9 @@ impl FSTreeDiff {
             .map(|f| f.path)
             .collect::<Vec<String>>();
         if !new_files.is_empty() {
-            message += &"\nAdded:\n".green();
+            message += "\nAdded:\n";
             for path in new_files {
-                message += &format!("{path}\n").green();
+                message += &format!("{}\n", path.green());
             }
         }
 
@@ -84,7 +84,7 @@ impl FSTreeDiff {
             .collect::<Vec<String>>();
 
         if !updated_files.is_empty() {
-            message += &"\nChanged:\n".purple();
+            message += "\nChanged:\n";
             for path in updated_files {
                 message += &format!("{}\n", path.purple());
             }
@@ -96,7 +96,7 @@ impl FSTreeDiff {
             .map(|f| f.path)
             .collect::<Vec<String>>();
         if !removed_files.is_empty() {
-            message += &"\nRemoved:\n".red();
+            message += "\nRemoved:\n";
             for path in removed_files {
                 message += &format!("{}\n", path.red());
             }

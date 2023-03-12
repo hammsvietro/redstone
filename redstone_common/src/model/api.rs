@@ -12,6 +12,7 @@ pub enum Endpoints {
     FetchUpdate(String), // backup_id
     Login,
     Push,
+    Pull,
 }
 
 impl Endpoints {
@@ -21,6 +22,7 @@ impl Endpoints {
             Self::Login => "/api/login".to_owned(),
 
             Self::Clone => "/api/download/clone".to_owned(),
+            Self::Pull => "/api/download/pull".to_owned(),
 
             Self::Declare => "/api/upload/declare".to_owned(),
             Self::Push => "/api/upload/push".to_owned(),
@@ -140,9 +142,9 @@ pub struct CloneRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct CloneResponse {
+pub struct DownloadResponse {
     pub backup: Backup,
-    pub files_to_download: Vec<File>,
+    pub files: Vec<File>,
     pub download_token: String,
     pub update: Update,
     pub total_bytes: usize,
@@ -166,6 +168,12 @@ pub struct UploadResponse {
 pub struct PushRequest {
     pub backup_id: String,
     pub files: Vec<FileUploadRequest>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct PullRequest {
+    pub backup_id: String,
+    pub update_id: String,
 }
 
 /* SERVER ENTITIES */
@@ -192,6 +200,7 @@ pub struct FileUpdate {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Update {
+    pub id: String,
     pub hash: String,
     pub message: String,
 }

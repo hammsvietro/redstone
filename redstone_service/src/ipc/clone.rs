@@ -4,7 +4,7 @@ use interprocess::local_socket::LocalSocketStream;
 
 use redstone_common::{
     model::{
-        api::{CloneRequest as ApiCloneRequest, CloneResponse, Endpoints, File},
+        api::{CloneRequest as ApiCloneRequest, DownloadResponse, Endpoints, File},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::{FSTree, RSFile},
         ipc::{clone::CloneRequest, ConfirmationRequest, IpcMessage, IpcMessageResponse},
@@ -28,10 +28,9 @@ pub async fn handle_clone_msg(
         .send(Method::POST, Endpoints::Clone.get_url(), request)
         .await?;
 
-    let clone_response: CloneResponse = handle_response(response).await?;
+    let clone_response: DownloadResponse = handle_response(response).await?;
 
-    let conflicting_files =
-        get_conflicting_files(&clone_request.path, &clone_response.files_to_download)?;
+    let conflicting_files = get_conflicting_files(&clone_request.path, &clone_response.files)?;
     let confirmation_request = ConfirmationRequest {
         message: get_confirmation_request_message(conflicting_files, clone_response.total_bytes),
     };
@@ -48,7 +47,7 @@ pub async fn handle_clone_msg(
 
     download_files(
         clone_request.path.clone(),
-        &clone_response.files_to_download,
+        &clone_response.files,
         clone_response.download_token.clone(),
     )
     .await?;
@@ -88,7 +87,7 @@ fn get_confirmation_request_message(conflicting_files: Vec<RSFile>, total_bytes:
 
 async fn write_index_file(
     clone_request: &mut CloneRequest,
-    clone_response: &CloneResponse,
+    clone_response: &DownloadResponse,
     fs_tree: FSTree,
 ) -> Result<()> {
     let backup_config = BackupConfig::new(None, false);

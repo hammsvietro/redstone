@@ -1,3 +1,4 @@
+mod api;
 mod backup;
 mod ipc;
 mod scheduler;
