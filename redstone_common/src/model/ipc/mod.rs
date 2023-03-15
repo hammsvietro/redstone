@@ -6,6 +6,7 @@ pub mod track;
 use self::push::PushRequest;
 use self::track::TrackRequest;
 use self::{clone::CloneRequest, pull::PullRequest};
+use super::fs_tree::RSFile;
 use super::RedstoneError;
 
 use serde::{Deserialize, Serialize};
@@ -18,20 +19,21 @@ use serde::{Deserialize, Serialize};
 pub enum IpcMessage {
     Request(IpcMessageRequest),
     Response(IpcMessageResponse),
+    TransferProgress(TransferProgress),
 }
 
 impl IpcMessage {
     pub fn is_request(&self) -> bool {
         match self {
             Self::Request(_) => true,
-            Self::Response(_) => false,
+            _ => false,
         }
     }
 
     pub fn is_confirmation_request(&self) -> bool {
         match self {
             Self::Request(request) => request.is_confirmation(),
-            Self::Response(_) => false,
+            _ => false,
         }
     }
 
@@ -41,8 +43,8 @@ impl IpcMessage {
 
     pub fn has_errors(&self) -> bool {
         match self {
-            Self::Request(_) => false,
             Self::Response(response) => response.error.is_some(),
+            _ => false,
         }
     }
 }
@@ -176,4 +178,13 @@ impl IpcMessageResponse {
     pub fn shutdown_connection(&self) -> bool {
         self.error.is_some() || !self.keep_connection
     }
+}
+
+///
+/// TransferProgress
+///
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TransferProgress {
+    pub file: RSFile,
+    pub progress: u64,
 }
