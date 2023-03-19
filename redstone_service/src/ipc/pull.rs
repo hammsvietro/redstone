@@ -16,7 +16,7 @@ use reqwest::Method;
 
 use crate::{api::update::check_latest_update, backup::file_transfer::download_files};
 
-use super::socket_loop::prompt_action_confirmation;
+use super::prompt_action_confirmation;
 
 pub async fn handle_pull_msg(
     connection: &mut LocalSocketStream,

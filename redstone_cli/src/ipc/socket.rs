@@ -25,7 +25,7 @@ fn send(conn: &mut LocalSocketStream, ipc_message: IpcMessage) -> Result<()> {
     Ok(conn.write_all(&encoded_message)?)
 }
 
-fn receive(conn: &mut LocalSocketStream) -> Result<IpcMessage> {
+pub fn receive(conn: &mut LocalSocketStream) -> Result<IpcMessage> {
     let mut buffer = [0; IPC_BUFFER_SIZE];
     let mut buff_reader = BufReader::new(conn.borrow_mut());
     let _ = buff_reader.read(buffer.borrow_mut())?;

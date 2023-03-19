@@ -10,11 +10,11 @@ use redstone_common::model::{
 };
 
 use crate::{
-    ipc::socket::{send_and_receive, stablish_connection},
+    ipc::socket::{receive, send_and_receive, stablish_connection},
     utils::handle_confirmation_request,
 };
 
-use super::models::TrackArgs;
+use super::{models::TrackArgs, progress_bar::FileTransferProgressBar};
 
 pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
     let path_buf = get_target_path(track_args.path);
@@ -37,7 +37,18 @@ pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
     }
     let confirmation_request: ConfirmationRequest = ConfirmationRequest::from(received_message);
     let confirmation_response = handle_confirmation_request(&mut conn, &confirmation_request)?;
-    let received_message = send_and_receive(&mut conn, confirmation_response)?;
+    let mut received_message = send_and_receive(&mut conn, confirmation_response)?;
+
+    let mut progress_bar: Option<FileTransferProgressBar> = None;
+    while let IpcMessage::FileOperationProgress(progress) = received_message {
+        if let Some(progress_bar) = &mut progress_bar {
+            progress_bar.handle_change(progress);
+        } else {
+            progress_bar = Some(FileTransferProgressBar::new(progress));
+        }
+
+        received_message = receive(&mut conn)?;
+    }
 
     if received_message.is_response() {
         let response = IpcMessageResponse::from(received_message);

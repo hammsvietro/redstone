@@ -4,7 +4,7 @@ use redstone_common::{
         api::{DeclareBackupRequest, Endpoints, FileUploadRequest, UploadResponse},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::{FSTree, FSTreeDiff},
-        ipc::track::TrackRequest,
+        ipc::{track::TrackRequest, FileActionProgress},
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse},
         DomainError, RedstoneError, Result,
     },
@@ -12,11 +12,11 @@ use redstone_common::{
 };
 use reqwest::Method;
 use std::{borrow::BorrowMut, io::Write, path::PathBuf};
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc;
 
-use crate::backup::file_transfer::send_files;
+use crate::{backup::file_transfer::send_files, ipc::send_progress};
 
-use super::socket_loop::prompt_action_confirmation;
+use super::prompt_action_confirmation;
 
 pub async fn handle_track_msg(
     connection: &mut LocalSocketStream,
@@ -57,13 +57,14 @@ pub async fn handle_track_msg(
         DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root.clone(), files);
 
     let declare_response = declare(&declare_request).await?;
-    let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<FileActionProgress>();
     let (_, _) = tokio::join!(
-        send_progress(&mut rx, total_size),
+        send_progress(connection.borrow_mut(), &mut rx),
         send_files(
             &declare_response.files,
             &declare_response.upload_token,
             root_folder,
+            total_size,
             tx
         )
     );
@@ -82,13 +83,6 @@ pub async fn handle_track_msg(
 
 fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
     Ok(response.into())
-}
-
-async fn send_progress(_progress_receiver: &mut UnboundedReceiver<u64>, _total_size: u64) {
-    // while let Some(sent) = progress_receiver.recv().await {
-    //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
-    //  // send to cli
-    // }
 }
 
 async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<UploadResponse> {

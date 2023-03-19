@@ -1,6 +1,7 @@
 use std::{
     borrow::BorrowMut,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use async_recursion::async_recursion;
@@ -8,6 +9,7 @@ use redstone_common::{
     constants::TCP_FILE_CHUNK_SIZE,
     model::{
         api::{File as RSFile, FileOperation},
+        ipc::{FileAction, FileActionProgress},
         tcp::{TcpMessage, TcpMessageResponse, TcpMessageResponseStatus},
         RedstoneError, Result,
     },
@@ -21,17 +23,23 @@ use tokio::{
     io::{AsyncWriteExt, BufReader},
     net::TcpStream,
     sync::mpsc::UnboundedSender,
+    time::sleep,
 };
 
 pub async fn send_files(
     files: &[RSFile],
     upload_token: &String,
     root_folder: PathBuf,
-    progress_emitter: UnboundedSender<u64>,
+    total_size: u64,
+    progress_emitter: UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
-    let mut bytes_sent: u64 = 0;
+    let mut progress = FileActionProgress {
+        operation: FileAction::Upload,
+        total: total_size,
+        ..Default::default()
+    };
     for file in files
         .iter()
         .filter(|file| file.last_update.operation != FileOperation::Remove)
@@ -42,8 +50,8 @@ pub async fn send_files(
             file,
             upload_token,
             &root_folder,
+            &mut progress,
             &progress_emitter,
-            &mut bytes_sent,
         )
         .await?;
     }
@@ -84,15 +92,17 @@ pub async fn download_files(root: PathBuf, files: &[RSFile], download_token: Str
     Ok(())
 }
 
-async fn send_file(
+async fn send_file<'a>(
     stream: &mut BufReader<TcpStream>,
     file: &RSFile,
     upload_token: &String,
     root_folder: &Path,
-    progress_emitter: &UnboundedSender<u64>,
-    bytes_sent: &mut u64,
+    file_action_progress: &'a mut FileActionProgress,
+    progress_emitter: &'a UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
     println!("Uploading {} file", file.path);
+    set_progress_for_file(file_action_progress.borrow_mut(), root_folder, file).await;
+
     let mut retry_count: u8 = 0;
     loop {
         let mut file_upload_message =
@@ -100,8 +110,12 @@ async fn send_file(
         while file_upload_message.has_data_to_fetch() {
             let packet = file_upload_message.get_tcp_payload()?;
             send_message(stream.borrow_mut(), &packet).await?;
-            *bytes_sent += file_upload_message.last_chunk_size as u64;
-            progress_emitter.send(*bytes_sent)?;
+
+            file_action_progress.file_progress += file_upload_message.last_chunk_size as u64;
+            file_action_progress.total_progress += file_upload_message.last_chunk_size as u64;
+            let _ = progress_emitter.send(file_action_progress.clone());
+            sleep(Duration::from_secs(1)).await;
+
             let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
             if response.status != TcpMessageResponseStatus::Ok {
                 // TODO: send abort message
@@ -222,4 +236,16 @@ async fn delete_empty_folders(path: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+async fn set_progress_for_file(
+    progress: &mut FileActionProgress,
+    root_folder: &Path,
+    file: &RSFile,
+) {
+    let file_path = root_folder.join(file.path.clone());
+    let file_size = tokio::fs::metadata(&file_path).await.unwrap().len();
+    progress.current_file_name = file.path.to_owned();
+    progress.file_total = file_size;
+    progress.file_progress = 0;
 }

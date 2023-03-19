@@ -3,10 +3,11 @@ pub mod pull;
 pub mod push;
 pub mod track;
 
+use std::fmt::Debug;
+
 use self::push::PushRequest;
 use self::track::TrackRequest;
 use self::{clone::CloneRequest, pull::PullRequest};
-use super::fs_tree::RSFile;
 use super::RedstoneError;
 
 use serde::{Deserialize, Serialize};
@@ -19,15 +20,12 @@ use serde::{Deserialize, Serialize};
 pub enum IpcMessage {
     Request(IpcMessageRequest),
     Response(IpcMessageResponse),
-    TransferProgress(TransferProgress),
+    FileOperationProgress(FileActionProgress),
 }
 
 impl IpcMessage {
     pub fn is_request(&self) -> bool {
-        match self {
-            Self::Request(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Request(_))
     }
 
     pub fn is_confirmation_request(&self) -> bool {
@@ -37,8 +35,12 @@ impl IpcMessage {
         }
     }
 
+    pub fn is_file_progress(&self) -> bool {
+        matches!(self, Self::FileOperationProgress(_))
+    }
+
     pub fn is_response(&self) -> bool {
-        !self.is_request()
+        matches!(self, Self::Response(_))
     }
 
     pub fn has_errors(&self) -> bool {
@@ -183,8 +185,40 @@ impl IpcMessageResponse {
 ///
 /// TransferProgress
 ///
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TransferProgress {
-    pub file: RSFile,
-    pub progress: u64,
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct FileActionProgress {
+    pub current_file_name: String,
+    pub file_progress: u64,
+    pub file_total: u64,
+
+    pub total_progress: u64,
+    pub total: u64,
+
+    pub operation: FileAction,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub enum FileAction {
+    #[default]
+    Hash,
+    Download,
+    Upload,
+}
+
+impl FileAction {
+    pub fn get_progress_bar_message(&self) -> &'static str {
+        match self {
+            FileAction::Download => "Downloading files.",
+            FileAction::Upload => "Uploading files.",
+            FileAction::Hash => "Hashing files.",
+        }
+    }
+
+    pub fn get_action_message(&self) -> &'static str {
+        match self {
+            FileAction::Download => "Files downloaded",
+            FileAction::Upload => "Files uploaded",
+            FileAction::Hash => "Files hashed",
+        }
+    }
 }

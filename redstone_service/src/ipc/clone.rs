@@ -16,7 +16,7 @@ use redstone_common::{
 use reqwest::Method;
 use tokio::io::AsyncWriteExt;
 
-use crate::{backup::file_transfer::download_files, ipc::socket_loop::prompt_action_confirmation};
+use crate::{backup::file_transfer::download_files, ipc::prompt_action_confirmation};
 
 pub async fn handle_clone_msg(
     connection: &mut LocalSocketStream,
