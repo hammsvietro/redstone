@@ -101,7 +101,7 @@ async fn send_file<'a>(
     progress_emitter: &'a UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
     println!("Uploading {} file", file.path);
-    set_progress_for_file(file_action_progress.borrow_mut(), root_folder, file).await;
+    file_action_progress.current_file_name = file.path.to_owned();
 
     let mut retry_count: u8 = 0;
     loop {
@@ -111,8 +111,7 @@ async fn send_file<'a>(
             let packet = file_upload_message.get_tcp_payload()?;
             send_message(stream.borrow_mut(), &packet).await?;
 
-            file_action_progress.file_progress += file_upload_message.last_chunk_size as u64;
-            file_action_progress.total_progress += file_upload_message.last_chunk_size as u64;
+            file_action_progress.progress += file_upload_message.last_chunk_size as u64;
             let _ = progress_emitter.send(file_action_progress.clone());
             sleep(Duration::from_secs(1)).await;
 
@@ -236,16 +235,4 @@ async fn delete_empty_folders(path: &Path) -> Result<()> {
         }
     }
     Ok(())
-}
-
-async fn set_progress_for_file(
-    progress: &mut FileActionProgress,
-    root_folder: &Path,
-    file: &RSFile,
-) {
-    let file_path = root_folder.join(file.path.clone());
-    let file_size = tokio::fs::metadata(&file_path).await.unwrap().len();
-    progress.current_file_name = file.path.to_owned();
-    progress.file_total = file_size;
-    progress.file_progress = 0;
 }

@@ -188,12 +188,8 @@ impl IpcMessageResponse {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct FileActionProgress {
     pub current_file_name: String,
-    pub file_progress: u64,
-    pub file_total: u64,
-
-    pub total_progress: u64,
+    pub progress: u64,
     pub total: u64,
-
     pub operation: FileAction,
 }
 
@@ -206,11 +202,11 @@ pub enum FileAction {
 }
 
 impl FileAction {
-    pub fn get_progress_bar_message(&self) -> &'static str {
+    pub fn get_progress_bar_message(&self, file_name: &str) -> String {
         match self {
-            FileAction::Download => "Downloading files.",
-            FileAction::Upload => "Uploading files.",
-            FileAction::Hash => "Hashing files.",
+            FileAction::Download => format!("Downloading {file_name}"),
+            FileAction::Upload => format!("Uploading {file_name}"),
+            FileAction::Hash => format!("Hashing {file_name}"),
         }
     }
 
