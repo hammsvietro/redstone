@@ -16,16 +16,16 @@ use tokio::sync::mpsc;
 
 use crate::{backup::file_transfer::send_files, ipc::send_progress};
 
-use super::prompt_action_confirmation;
+use super::{build_fs_tree_with_progress, prompt_action_confirmation};
 
 pub async fn handle_track_msg(
     connection: &mut LocalSocketStream,
     track_request: &mut TrackRequest,
 ) -> Result<IpcMessage> {
-    let fs_tree = FSTree::build(track_request.base_path.clone(), None)?;
-    let index_file_path = get_index_file_for_path(&fs_tree.root);
+    let base_path = &track_request.base_path;
+    let index_file_path = get_index_file_for_path(base_path);
     if index_file_path.exists() {
-        let path = fs_tree.root.to_str().unwrap().into();
+        let path = base_path.to_str().unwrap().into();
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: Some(RedstoneError::DomainError(
@@ -34,9 +34,12 @@ pub async fn handle_track_msg(
             message: None,
         });
     }
+    let fs_tree = build_fs_tree_with_progress(connection, track_request.base_path.clone()).await?;
     let confirmation_request = get_confirmation_message(&fs_tree);
+    println!("prompting action confirmation");
     let confirmation_result =
         prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await?;
+    println!("done");
     if !confirmation_result.has_accepted {
         return wrap(IpcMessageResponse {
             keep_connection: false,

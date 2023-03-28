@@ -3,6 +3,7 @@ use std::borrow::{Borrow, BorrowMut};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use redstone_common::{
     constants::IPC_SOCKET_PATH,
+    ipc::send,
     model::{
         ipc::{IpcMessage, IpcMessageRequest, IpcMessageRequestType, IpcMessageResponse},
         Result,
@@ -13,7 +14,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     ipc::{
         clone::handle_clone_msg, handle_error, read_message_until_complete_or_timeout,
-        send_message, track::handle_track_msg,
+        track::handle_track_msg,
     },
     scheduler::UpdateJob,
 };
@@ -43,7 +44,7 @@ async fn handle_connection(
         {
             Ok(message) => message,
             Err(err) => {
-                let _ = send_message(
+                let _ = send(
                     connection.borrow_mut(),
                     &IpcMessage::Response(IpcMessageResponse {
                         message: None,
@@ -65,7 +66,7 @@ async fn handle_connection(
                 })
             });
 
-        if let Err(err) = send_message(connection.borrow_mut(), result_msg.borrow()) {
+        if let Err(err) = send(connection.borrow_mut(), result_msg.borrow()) {
             eprintln!("{err}");
             break;
         }

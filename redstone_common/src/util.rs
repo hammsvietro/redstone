@@ -1,11 +1,11 @@
-use std::{io::Read, path::PathBuf};
+use std::{io::Read, path::Path};
 
 use data_encoding::HEXLOWER;
 use sha2::{Digest, Sha256};
 
 use crate::model::Result;
 
-pub fn generate_sha256_digest(path: &PathBuf) -> Result<String> {
+pub fn generate_sha256_digest(path: &Path) -> Result<String> {
     let input = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(input);
 

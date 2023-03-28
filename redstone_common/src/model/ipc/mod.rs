@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 pub enum IpcMessage {
     Request(IpcMessageRequest),
     Response(IpcMessageResponse),
-    FileOperationProgress(FileActionProgress),
 }
 
 impl IpcMessage {
@@ -36,7 +35,10 @@ impl IpcMessage {
     }
 
     pub fn is_file_progress(&self) -> bool {
-        matches!(self, Self::FileOperationProgress(_))
+        match self {
+            IpcMessage::Request(request) => request.is_progress(),
+            _ => false,
+        }
     }
 
     pub fn is_response(&self) -> bool {
@@ -61,6 +63,9 @@ pub struct IpcMessageRequest {
 }
 
 impl IpcMessageRequest {
+    pub fn is_progress(&self) -> bool {
+        matches!(self.message, IpcMessageRequestType::FileActionProgress(_))
+    }
     pub fn is_confirmation(&self) -> bool {
         matches!(self.message, IpcMessageRequestType::ConfirmationRequest(_))
     }
@@ -69,6 +74,13 @@ impl IpcMessageRequest {
         match self.message {
             IpcMessageRequestType::ConfirmationRequest(req) => req,
             _ => panic!("Tried to 'get_confirmation' but wrapped object is of another type."),
+        }
+    }
+
+    pub fn get_progress(self) -> FileActionProgress {
+        match self.message {
+            IpcMessageRequestType::FileActionProgress(req) => req,
+            _ => panic!("Tried to 'get_progress' but wrapped object is of another type."),
         }
     }
 }
@@ -95,6 +107,7 @@ pub enum IpcMessageRequestType {
     PushRequest(PushRequest),
     PullRequest(PullRequest),
     TrackRequest(TrackRequest),
+    FileActionProgress(FileActionProgress),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -193,7 +206,16 @@ pub struct FileActionProgress {
     pub operation: FileAction,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+impl From<IpcMessage> for FileActionProgress {
+    fn from(ipc_message: IpcMessage) -> Self {
+        if let IpcMessage::Request(ipc_req) = ipc_message {
+            return ipc_req.get_progress();
+        }
+        panic!("Tried to 'get_confirmation' but wrapped object is of another type.");
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 pub enum FileAction {
     #[default]
     Hash,

@@ -1,7 +1,6 @@
 use std::{
     borrow::BorrowMut,
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 use async_recursion::async_recursion;
@@ -23,7 +22,6 @@ use tokio::{
     io::{AsyncWriteExt, BufReader},
     net::TcpStream,
     sync::mpsc::UnboundedSender,
-    time::sleep,
 };
 
 pub async fn send_files(
@@ -113,7 +111,6 @@ async fn send_file<'a>(
 
             file_action_progress.progress += file_upload_message.last_chunk_size as u64;
             let _ = progress_emitter.send(file_action_progress.clone());
-            sleep(Duration::from_secs(1)).await;
 
             let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
             if response.status != TcpMessageResponseStatus::Ok {

@@ -1904,6 +1904,7 @@ dependencies = [
  "data-encoding",
  "dirs",
  "ignore",
+ "interprocess",
  "reqwest",
  "serde",
  "serde_bytes",

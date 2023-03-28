@@ -1,10 +1,22 @@
 use indicatif::{ProgressBar, ProgressFinish, ProgressState, ProgressStyle};
-use redstone_common::model::ipc::FileActionProgress;
-use std::{borrow::Cow, fmt::Write, time::Duration};
+use interprocess::local_socket::LocalSocketStream;
+use redstone_common::{
+    ipc::send_and_receive,
+    model::{
+        ipc::{FileAction, FileActionProgress, IpcMessage, IpcMessageResponse},
+        Result,
+    },
+};
+use std::{
+    borrow::{BorrowMut, Cow},
+    fmt::Write,
+    time::Duration,
+};
 
 pub struct FileTransferProgressBar {
-    progress_bar: ProgressBar,
-    current_file_name: String,
+    pub progress_bar: ProgressBar,
+    pub current_file_name: String,
+    pub operation: FileAction,
 }
 
 impl FileTransferProgressBar {
@@ -22,6 +34,7 @@ impl FileTransferProgressBar {
         Self {
             progress_bar: total_pb,
             current_file_name: file_action_progress.current_file_name,
+            operation: file_action_progress.operation,
         }
     }
 
@@ -49,4 +62,26 @@ impl FileTransferProgressBar {
         })
         .progress_chars("=> ")
     }
+}
+
+pub fn handle_progress_bar(
+    conn: &mut LocalSocketStream,
+    mut received_message: IpcMessage,
+) -> Result<IpcMessage> {
+    let mut progress_bar: Option<FileTransferProgressBar> = None;
+    while received_message.is_file_progress() {
+        let progress = FileActionProgress::from(received_message);
+        match progress_bar.borrow_mut() {
+            Some(bar) if bar.operation == progress.operation => bar.handle_change(progress),
+            _ => progress_bar = Some(FileTransferProgressBar::new(progress)),
+        };
+
+        let ack_progress_msg = IpcMessage::Response(IpcMessageResponse {
+            keep_connection: true,
+            message: None,
+            error: None,
+        });
+        received_message = send_and_receive(conn, &ack_progress_msg)?;
+    }
+    Ok(received_message)
 }
