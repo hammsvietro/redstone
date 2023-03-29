@@ -56,21 +56,34 @@ pub async fn send_files(
     send_commit_msg(&mut stream, upload_token).await
 }
 
-pub async fn download_files(root: PathBuf, files: &[RSFile], download_token: String) -> Result<()> {
+pub async fn download_files(
+    root: PathBuf,
+    files: &[RSFile],
+    download_token: String,
+    total_size: u64,
+    progress_emitter: UnboundedSender<FileActionProgress>,
+) -> Result<()> {
     let stream = TcpStream::connect("127.0.0.1:8000").await?;
     let mut stream = BufReader::new(stream);
-    let mut _bytes_received: u64 = 0;
+    let mut progress = FileActionProgress {
+        total: total_size,
+        operation: FileAction::Download,
+        progress: 0,
+        current_file_name: String::new(),
+    };
     for file in files
         .iter()
         .filter(|file| file.last_update.operation != FileOperation::Remove)
         .collect::<Vec<&RSFile>>()
     {
+        progress.current_file_name = file.path.to_owned();
         download_file(
             &mut stream,
             file,
             &root,
             download_token.clone(),
-            &mut _bytes_received,
+            &mut progress,
+            &progress_emitter,
         )
         .await?;
         println!("downloaded {}", file.path);
@@ -87,6 +100,8 @@ pub async fn download_files(root: PathBuf, files: &[RSFile], download_token: Str
         return Err(RedstoneError::BaseError(error));
     }
     delete_removed_files(&root, files).await?;
+    progress.progress = progress.total;
+    let _ = progress_emitter.send(progress);
     Ok(())
 }
 
@@ -157,13 +172,15 @@ async fn send_commit_msg(stream: &mut BufReader<TcpStream>, upload_token: &str) 
     Ok(())
 }
 
-async fn download_file(
+async fn download_file<'a>(
     stream: &mut BufReader<TcpStream>,
     file: &RSFile,
     root: &Path,
     download_token: String,
-    _bytes_received: &mut u64,
+    file_action_progress: &'a mut FileActionProgress,
+    progress_emitter: &'a UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
+    file_action_progress.current_file_name = file.path.to_owned();
     let mut path = root.to_path_buf();
     path.push(file.path.clone());
     if path.is_file() {
@@ -184,13 +201,14 @@ async fn download_file(
             break;
         }
         let data = response.data.unwrap();
-        *_bytes_received += data.len() as u64;
         let mut file = tokio::fs::OpenOptions::new()
             .append(true)
             .create(true)
             .open(&path)
             .await?;
         file.write_all(&data).await?;
+        file_action_progress.progress += data.len() as u64;
+        let _ = progress_emitter.send(file_action_progress.clone());
         if data.len() == TCP_FILE_CHUNK_SIZE {
             break;
         }

@@ -30,7 +30,8 @@ pub fn run_push_cmd() -> Result<()> {
         message: IpcMessageRequestType::PushRequest(PushRequest { path }),
     });
     let mut connection = stablish_connection()?;
-    let received_message = send_and_receive(&mut connection, &request)?;
+    let mut received_message = send_and_receive(&mut connection, &request)?;
+    received_message = handle_progress_bar(&mut connection, received_message)?;
     if received_message.has_errors() {
         let error = IpcMessageResponse::from(received_message).error.unwrap();
         return Err(error);

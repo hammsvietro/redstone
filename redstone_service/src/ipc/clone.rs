@@ -7,16 +7,24 @@ use redstone_common::{
         api::{CloneRequest as ApiCloneRequest, DownloadResponse, Endpoints, File},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::{FSTree, RSFile},
-        ipc::{clone::CloneRequest, ConfirmationRequest, IpcMessage, IpcMessageResponse},
+        ipc::{
+            clone::CloneRequest, ConfirmationRequest, FileActionProgress, IpcMessage,
+            IpcMessageResponse,
+        },
         Result,
     },
     util::bytes_to_human_readable,
     web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
-use tokio::io::AsyncWriteExt;
+use tokio::{io::AsyncWriteExt, sync::mpsc};
 
-use crate::{backup::file_transfer::download_files, ipc::prompt_action_confirmation};
+use crate::{
+    backup::file_transfer::download_files,
+    ipc::{prompt_action_confirmation, send_progress},
+};
+
+use super::build_fs_tree_with_progress;
 
 pub async fn handle_clone_msg(
     connection: &mut LocalSocketStream,
@@ -45,14 +53,21 @@ pub async fn handle_clone_msg(
         .into());
     }
 
-    download_files(
-        clone_request.path.clone(),
-        &clone_response.files,
-        clone_response.download_token.clone(),
-    )
-    .await?;
+    let (tx, mut rx) = mpsc::unbounded_channel::<FileActionProgress>();
+    let (_, download_result) = tokio::join!(
+        send_progress(connection.borrow_mut(), &mut rx),
+        download_files(
+            clone_request.path.clone(),
+            &clone_response.files,
+            clone_response.download_token.clone(),
+            clone_response.total_bytes as u64,
+            tx
+        )
+    );
 
-    let fs_tree = FSTree::build(clone_request.path.clone(), None)?;
+    download_result?;
+
+    let fs_tree = build_fs_tree_with_progress(connection, clone_request.path.clone()).await?;
 
     write_index_file(clone_request.borrow_mut(), &clone_response, fs_tree).await?;
 

@@ -27,7 +27,7 @@ pub fn receive(conn: &mut LocalSocketStream) -> Result<IpcMessage> {
     buff_reader.read_exact(&mut incoming_packet_buf)?;
     let incoming_packet_size = u32::from_be_bytes(incoming_packet_buf);
     let mut buffer = vec![0; incoming_packet_size as usize];
-    let _ = buff_reader.read_exact(buffer.borrow_mut())?;
+    buff_reader.read_exact(buffer.borrow_mut())?;
     Ok(bincode::deserialize::<IpcMessage>(buffer.borrow_mut())?)
 }
 

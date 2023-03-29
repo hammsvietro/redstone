@@ -36,10 +36,8 @@ pub async fn handle_track_msg(
     }
     let fs_tree = build_fs_tree_with_progress(connection, track_request.base_path.clone()).await?;
     let confirmation_request = get_confirmation_message(&fs_tree);
-    println!("prompting action confirmation");
     let confirmation_result =
         prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await?;
-    println!("done");
     if !confirmation_result.has_accepted {
         return wrap(IpcMessageResponse {
             keep_connection: false,
@@ -61,7 +59,7 @@ pub async fn handle_track_msg(
 
     let declare_response = declare(&declare_request).await?;
     let (tx, mut rx) = mpsc::unbounded_channel::<FileActionProgress>();
-    let (_, _) = tokio::join!(
+    let (_, send_files_result) = tokio::join!(
         send_progress(connection.borrow_mut(), &mut rx),
         send_files(
             &declare_response.files,
@@ -71,6 +69,8 @@ pub async fn handle_track_msg(
             tx
         )
     );
+    send_files_result?;
+
     create_files(
         &index_file_path,
         declare_response,

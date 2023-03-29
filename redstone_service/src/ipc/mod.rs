@@ -72,7 +72,6 @@ pub async fn send_progress(
     progress_receiver: &mut UnboundedReceiver<FileActionProgress>,
 ) -> Result<()> {
     while let Some(progress) = progress_receiver.recv().await {
-        println!("sending: {progress:?}");
         let response = send_and_receive(
             conn,
             &IpcMessage::Request(IpcMessageRequest {
@@ -98,6 +97,7 @@ pub fn progress_sender_factory(
         let _ = progress_sender.send(progress);
     }
 }
+
 pub async fn build_fs_tree_with_progress(
     connection: &mut LocalSocketStream,
     root: PathBuf,

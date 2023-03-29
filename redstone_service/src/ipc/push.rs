@@ -5,7 +5,6 @@ use redstone_common::{
     model::{
         api::{Endpoints, FileUploadRequest, PushRequest as ApiPushRequest, UploadResponse},
         backup::{get_index_file_for_path, IndexFile},
-        fs_tree::FSTree,
         ipc::{
             push::PushRequest as IpcPushRequest, ConfirmationRequest, FileActionProgress,
             IpcMessage, IpcMessageResponse,
@@ -21,7 +20,7 @@ use crate::{
     api::update::check_latest_update, backup::file_transfer::send_files, ipc::send_progress,
 };
 
-use super::prompt_action_confirmation;
+use super::{build_fs_tree_with_progress, prompt_action_confirmation};
 pub async fn handle_push_msg(
     connection: &mut LocalSocketStream,
     push_request: &mut IpcPushRequest,
@@ -41,7 +40,7 @@ pub async fn handle_push_msg(
         });
     }
 
-    let fs_tree = FSTree::build(push_request.path.clone(), None)?;
+    let fs_tree = build_fs_tree_with_progress(connection, push_request.path.clone()).await?;
     let diff = fs_tree.diff(&index_file.last_fs_tree)?;
     let total_size = diff.total_size();
     if !diff.has_changes() {
@@ -88,7 +87,6 @@ pub async fn handle_push_msg(
             tx,
         )
     );
-
     send_files_result?;
 
     let latest_update = check_latest_update(index_file.backup.id.to_owned()).await?;
