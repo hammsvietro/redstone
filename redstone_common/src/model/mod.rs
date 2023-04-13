@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
+use tokio::task::JoinError;
 
 use crate::web::api::ApiErrorResponse;
 
@@ -37,6 +38,12 @@ impl From<std::string::String> for RedstoneError {
 impl From<ApiErrorResponse> for RedstoneError {
     fn from(error: ApiErrorResponse) -> Self {
         RedstoneError::ApiError(error)
+    }
+}
+
+impl From<JoinError> for RedstoneError {
+    fn from(error: JoinError) -> Self {
+        RedstoneError::TokioError(error.to_string())
     }
 }
 
@@ -133,6 +140,7 @@ pub enum DomainError {
     AlreadyInLatestUpdate,
     NoChanges,
     ConfirmationNotAccepted,
+    ErrorDurringProgressEmition,
 }
 
 impl Display for DomainError {
@@ -156,6 +164,7 @@ impl Display for DomainError {
             "
             .into(),
             Self::ConfirmationNotAccepted => "".into(),
+            Self::ErrorDurringProgressEmition => "".into(),
         };
         write!(f, "{error}")
     }

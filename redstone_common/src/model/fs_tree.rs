@@ -9,7 +9,10 @@ use std::{
 
 use crate::util::generate_sha256_digest;
 
-use super::{ArgumentError, RedstoneError, Result};
+use super::{
+    ipc::{FileAction, FileActionProgress},
+    ArgumentError, RedstoneError, Result,
+};
 
 type Sha256Digest = String;
 
@@ -17,16 +20,14 @@ type Sha256Digest = String;
 pub struct RSFile {
     pub path: String,
     pub sha_256_digest: String,
-    pub depth: u16,
     pub size: u64,
 }
 
 impl RSFile {
-    pub fn new(path: String, sha_256_digest: String, depth: u16, size: u64) -> Self {
+    pub fn new(path: String, sha_256_digest: String, size: u64) -> Self {
         Self {
             path,
             sha_256_digest,
-            depth,
             size,
         }
     }
@@ -110,33 +111,17 @@ impl FSTreeDiff {
 pub struct FSTree {
     pub files: Vec<RSFile>,
     pub root: PathBuf,
-    pub max_depth: Option<u16>,
 }
 
 impl FSTree {
-    pub fn build(root: PathBuf, max_depth: Option<u16>) -> Result<Self> {
-        let root_is_file = root.is_file();
-        let mut fs_tree = FSTree {
-            root,
-            files: Vec::new(),
-            max_depth,
-        };
-
-        let root_as_string = &fs_tree.root.to_str().unwrap();
-        if root_is_file {
-            return Err(RedstoneError::ArgumentError(
-                ArgumentError::PathCannotBeAFile(String::from(*root_as_string)),
-            ));
-        }
-        fs_tree.files = read_dir(&fs_tree.root, 0, max_depth, root_as_string, &mut Vec::new())?;
-
+    pub fn build(
+        root: PathBuf,
+        progress_handler_fn: Option<&dyn Fn(FileActionProgress)>,
+    ) -> Result<FSTree> {
+        let mut fs_tree = Self::build_base(root)?;
+        let files = read_dir(&fs_tree.root, 0, &mut Vec::new())?;
+        fs_tree.files = build_rs_files(&fs_tree.root, files, progress_handler_fn)?;
         Ok(fs_tree)
-    }
-
-    pub fn get_first_depth(&self) -> Vec<&RSFile> {
-        let mut items: Vec<&RSFile> = self.files.iter().filter(|item| item.depth <= 1).collect();
-        items.sort_by(|a, b| b.depth.partial_cmp(&a.depth).unwrap());
-        items
     }
 
     pub fn total_size(&self) -> u64 {
@@ -187,20 +172,26 @@ impl FSTree {
             removed_files,
         })
     }
+
+    fn build_base(root: PathBuf) -> Result<FSTree> {
+        let root_is_file = root.is_file();
+        let fs_tree = FSTree {
+            root,
+            files: Vec::new(),
+        };
+
+        let root_as_string = &fs_tree.root.to_str().unwrap();
+        if root_is_file {
+            return Err(RedstoneError::ArgumentError(
+                ArgumentError::PathCannotBeAFile(String::from(*root_as_string)),
+            ));
+        }
+        Ok(fs_tree)
+    }
 }
 
-fn read_dir(
-    dir: &PathBuf,
-    depth: u16,
-    max_depth: Option<u16>,
-    root: &str,
-    ignores: &mut Vec<String>,
-) -> Result<Vec<RSFile>> {
+fn read_dir(dir: &PathBuf, depth: u16, ignores: &mut Vec<String>) -> Result<Vec<PathBuf>> {
     let mut file_tree_items = Vec::new();
-    if max_depth.is_some() && depth > max_depth.unwrap() {
-        return Ok(file_tree_items);
-    }
-
     {
         let mut dir = dir.clone();
         dir.push(".rsignore");
@@ -224,23 +215,49 @@ fn read_dir(
         let entry = entry?;
         let path = PathBuf::from(entry.path());
         if path.is_dir() && path != *dir && !is_rs_dir(&path, depth) {
-            file_tree_items.extend(read_dir(&path, depth + 1, max_depth, root, ignores)?);
+            file_tree_items.extend(read_dir(&path, depth + 1, ignores)?);
         } else if path.is_file() {
-            let file_path = build_relative_file_path(&path, root);
-            let sha256_digest: Sha256Digest = generate_sha256_digest(&path).unwrap();
-            let size = std::fs::metadata(&path)?.len();
-            let file = RSFile::new(file_path, sha256_digest, depth, size);
-            file_tree_items.push(file);
+            file_tree_items.push(path);
         }
     }
     Ok(file_tree_items)
+}
+
+fn build_rs_files(
+    root: &Path,
+    files: Vec<PathBuf>,
+    progress_handler_fn: Option<&dyn Fn(FileActionProgress)>,
+) -> Result<Vec<RSFile>> {
+    let files_count = files.len() as u64;
+    let mut files_hashed = 0;
+    files
+        .iter()
+        .map(|path| {
+            let file_path = build_relative_file_path(path, root);
+            let size = std::fs::metadata(path)?.len();
+
+            if let Some(handler) = progress_handler_fn {
+                handler(FileActionProgress {
+                    total: files_count,
+                    current_file_name: file_path.to_owned(),
+                    progress: files_hashed,
+                    operation: FileAction::Hash,
+                });
+            }
+
+            let sha256_digest: Sha256Digest = generate_sha256_digest(path)?;
+            files_hashed += 1;
+            Ok(RSFile::new(file_path, sha256_digest, size))
+        })
+        .collect::<Result<_>>()
 }
 
 fn is_rs_dir(path: &Path, depth: u16) -> bool {
     return depth == 0 && path.file_name() == Some(OsStr::new(".rs"));
 }
 
-fn build_relative_file_path(path: &Path, root: &str) -> String {
+fn build_relative_file_path(path: &Path, root: &Path) -> String {
+    let root = root.to_str().unwrap();
     let suffix = match root.ends_with('/') {
         true => String::from(root),
         false => String::from(root) + "/",
@@ -275,7 +292,6 @@ mod tests {
         let new_file = RSFile::new(
             "new_file.elm".into(),
             "982bc87271bad526f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f5e".into(),
-            0,
             123,
         );
         fs_tree.files.push(new_file.clone());
@@ -295,25 +311,18 @@ mod tests {
             RSFile::new(
                 String::from("other_folder/other_file.hs"),
                 String::from("982bc87271bad527f4659eb12ecf1fd1295ae9fe0acfcfc83539fb9c0e523f64"),
-                1,
                 53_u64,
             ),
             RSFile::new(
                 String::from("hello.ex"),
                 String::from("1d8326dc32bc35812503ecfcce8ca3db0f025fb84d589df4e687b96f6cdf03fe"),
-                0,
                 159_u64,
             ),
         ];
-        let mut target_fs_tree = FSTree {
-            files,
-            root: path,
-            max_depth: None,
-        };
+        let mut target_fs_tree = FSTree { files, root: path };
         target_fs_tree.files.sort();
         fs_tree.files.sort();
 
-        assert_eq!(target_fs_tree.max_depth, fs_tree.max_depth);
         assert_eq!(target_fs_tree.root, fs_tree.root);
         assert_eq!(target_fs_tree, fs_tree);
     }

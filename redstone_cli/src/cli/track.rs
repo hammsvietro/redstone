@@ -1,20 +1,20 @@
 use std::{env::current_dir, path::PathBuf, str::FromStr};
 
-use redstone_common::model::{
-    ipc::track::TrackRequest,
-    ipc::{
-        ConfirmationRequest, IpcMessage, IpcMessageRequest, IpcMessageRequestType,
-        IpcMessageResponse,
+use redstone_common::{
+    ipc::send_and_receive,
+    model::{
+        ipc::track::TrackRequest,
+        ipc::{
+            ConfirmationRequest, IpcMessage, IpcMessageRequest, IpcMessageRequestType,
+            IpcMessageResponse,
+        },
+        Result,
     },
-    Result,
 };
 
-use crate::{
-    ipc::socket::{send_and_receive, stablish_connection},
-    utils::handle_confirmation_request,
-};
+use crate::{ipc::socket::stablish_connection, utils::handle_confirmation_request};
 
-use super::models::TrackArgs;
+use super::{models::TrackArgs, progress_bar::handle_progress_bar};
 
 pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
     let path_buf = get_target_path(track_args.path);
@@ -30,14 +30,17 @@ pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
     });
 
     let mut conn = stablish_connection()?;
-    let received_message = send_and_receive(&mut conn, request)?;
+    let mut received_message = send_and_receive(&mut conn, &request)?;
     if received_message.has_errors() {
         let error = IpcMessageResponse::from(received_message).error.unwrap();
         return Err(error);
     }
+    received_message = handle_progress_bar(&mut conn, received_message)?;
     let confirmation_request: ConfirmationRequest = ConfirmationRequest::from(received_message);
     let confirmation_response = handle_confirmation_request(&mut conn, &confirmation_request)?;
-    let received_message = send_and_receive(&mut conn, confirmation_response)?;
+    let mut received_message = send_and_receive(&mut conn, &confirmation_response)?;
+
+    received_message = handle_progress_bar(&mut conn, received_message)?;
 
     if received_message.is_response() {
         let response = IpcMessageResponse::from(received_message);

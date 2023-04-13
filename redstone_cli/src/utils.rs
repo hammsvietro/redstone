@@ -1,15 +1,16 @@
 use std::io::Write;
 
 use interprocess::local_socket::LocalSocketStream;
-use redstone_common::model::{
-    ipc::{
-        ConfirmationRequest, ConfirmationResponse, IpcMessage, IpcMessageResponse,
-        IpcMessageResponseType,
+use redstone_common::{
+    ipc::send_and_receive,
+    model::{
+        ipc::{
+            ConfirmationRequest, ConfirmationResponse, IpcMessage, IpcMessageResponse,
+            IpcMessageResponseType,
+        },
+        DomainError, RedstoneError, Result,
     },
-    DomainError, RedstoneError, Result,
 };
-
-use crate::ipc::socket::send_and_receive;
 
 pub fn handle_confirmation_request(
     connection: &mut LocalSocketStream,
@@ -37,7 +38,7 @@ pub fn handle_confirmation_request(
     });
 
     if !has_accepted {
-        send_and_receive(connection, response)?;
+        send_and_receive(connection, &response)?;
         return Err(RedstoneError::DomainError(
             DomainError::ConfirmationNotAccepted,
         ));

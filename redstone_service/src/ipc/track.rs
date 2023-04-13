@@ -4,7 +4,7 @@ use redstone_common::{
         api::{DeclareBackupRequest, Endpoints, FileUploadRequest, UploadResponse},
         backup::{get_index_file_for_path, BackupConfig, IndexFile},
         fs_tree::{FSTree, FSTreeDiff},
-        ipc::track::TrackRequest,
+        ipc::{track::TrackRequest, FileActionProgress},
         ipc::{ConfirmationRequest, IpcMessage, IpcMessageResponse},
         DomainError, RedstoneError, Result,
     },
@@ -12,20 +12,20 @@ use redstone_common::{
 };
 use reqwest::Method;
 use std::{borrow::BorrowMut, io::Write, path::PathBuf};
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc;
 
-use crate::backup::file_transfer::send_files;
+use crate::{backup::file_transfer::send_files, ipc::send_progress};
 
-use super::socket_loop::prompt_action_confirmation;
+use super::{build_fs_tree_with_progress, prompt_action_confirmation};
 
 pub async fn handle_track_msg(
     connection: &mut LocalSocketStream,
     track_request: &mut TrackRequest,
 ) -> Result<IpcMessage> {
-    let fs_tree = FSTree::build(track_request.base_path.clone(), None)?;
-    let index_file_path = get_index_file_for_path(&fs_tree.root);
+    let base_path = &track_request.base_path;
+    let index_file_path = get_index_file_for_path(base_path);
     if index_file_path.exists() {
-        let path = fs_tree.root.to_str().unwrap().into();
+        let path = base_path.to_str().unwrap().into();
         return wrap(IpcMessageResponse {
             keep_connection: false,
             error: Some(RedstoneError::DomainError(
@@ -34,6 +34,7 @@ pub async fn handle_track_msg(
             message: None,
         });
     }
+    let fs_tree = build_fs_tree_with_progress(connection, track_request.base_path.clone()).await?;
     let confirmation_request = get_confirmation_message(&fs_tree);
     let confirmation_result =
         prompt_action_confirmation(connection.borrow_mut(), confirmation_request).await?;
@@ -57,16 +58,19 @@ pub async fn handle_track_msg(
         DeclareBackupRequest::new(track_request.name.as_str(), fs_tree.root.clone(), files);
 
     let declare_response = declare(&declare_request).await?;
-    let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
-    let (_, _) = tokio::join!(
-        send_progress(&mut rx, total_size),
+    let (tx, mut rx) = mpsc::unbounded_channel::<FileActionProgress>();
+    let (_, send_files_result) = tokio::join!(
+        send_progress(connection.borrow_mut(), &mut rx),
         send_files(
             &declare_response.files,
             &declare_response.upload_token,
             root_folder,
+            total_size,
             tx
         )
     );
+    send_files_result?;
+
     create_files(
         &index_file_path,
         declare_response,
@@ -82,13 +86,6 @@ pub async fn handle_track_msg(
 
 fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
     Ok(response.into())
-}
-
-async fn send_progress(_progress_receiver: &mut UnboundedReceiver<u64>, _total_size: u64) {
-    // while let Some(sent) = progress_receiver.recv().await {
-    //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
-    //  // send to cli
-    // }
 }
 
 async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<UploadResponse> {

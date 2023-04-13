@@ -2,6 +2,7 @@ pub mod models;
 
 mod auth;
 mod clone;
+mod progress_bar;
 mod pull;
 mod push;
 mod status;

@@ -3,6 +3,8 @@ pub mod pull;
 pub mod push;
 pub mod track;
 
+use std::fmt::Debug;
+
 use self::push::PushRequest;
 use self::track::TrackRequest;
 use self::{clone::CloneRequest, pull::PullRequest};
@@ -22,27 +24,31 @@ pub enum IpcMessage {
 
 impl IpcMessage {
     pub fn is_request(&self) -> bool {
-        match self {
-            Self::Request(_) => true,
-            Self::Response(_) => false,
-        }
+        matches!(self, Self::Request(_))
     }
 
     pub fn is_confirmation_request(&self) -> bool {
         match self {
             Self::Request(request) => request.is_confirmation(),
-            Self::Response(_) => false,
+            _ => false,
+        }
+    }
+
+    pub fn is_file_progress(&self) -> bool {
+        match self {
+            IpcMessage::Request(request) => request.is_progress(),
+            _ => false,
         }
     }
 
     pub fn is_response(&self) -> bool {
-        !self.is_request()
+        matches!(self, Self::Response(_))
     }
 
     pub fn has_errors(&self) -> bool {
         match self {
-            Self::Request(_) => false,
             Self::Response(response) => response.error.is_some(),
+            _ => false,
         }
     }
 }
@@ -57,6 +63,9 @@ pub struct IpcMessageRequest {
 }
 
 impl IpcMessageRequest {
+    pub fn is_progress(&self) -> bool {
+        matches!(self.message, IpcMessageRequestType::FileActionProgress(_))
+    }
     pub fn is_confirmation(&self) -> bool {
         matches!(self.message, IpcMessageRequestType::ConfirmationRequest(_))
     }
@@ -65,6 +74,13 @@ impl IpcMessageRequest {
         match self.message {
             IpcMessageRequestType::ConfirmationRequest(req) => req,
             _ => panic!("Tried to 'get_confirmation' but wrapped object is of another type."),
+        }
+    }
+
+    pub fn get_progress(self) -> FileActionProgress {
+        match self.message {
+            IpcMessageRequestType::FileActionProgress(req) => req,
+            _ => panic!("Tried to 'get_progress' but wrapped object is of another type."),
         }
     }
 }
@@ -91,6 +107,7 @@ pub enum IpcMessageRequestType {
     PushRequest(PushRequest),
     PullRequest(PullRequest),
     TrackRequest(TrackRequest),
+    FileActionProgress(FileActionProgress),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -175,5 +192,51 @@ impl From<IpcMessage> for ConfirmationResponse {
 impl IpcMessageResponse {
     pub fn shutdown_connection(&self) -> bool {
         self.error.is_some() || !self.keep_connection
+    }
+}
+
+///
+/// TransferProgress
+///
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct FileActionProgress {
+    pub current_file_name: String,
+    pub progress: u64,
+    pub total: u64,
+    pub operation: FileAction,
+}
+
+impl From<IpcMessage> for FileActionProgress {
+    fn from(ipc_message: IpcMessage) -> Self {
+        if let IpcMessage::Request(ipc_req) = ipc_message {
+            return ipc_req.get_progress();
+        }
+        panic!("Tried to 'get_confirmation' but wrapped object is of another type.");
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+pub enum FileAction {
+    #[default]
+    Hash,
+    Download,
+    Upload,
+}
+
+impl FileAction {
+    pub fn get_progress_bar_message(&self, file_name: &str) -> String {
+        match self {
+            FileAction::Download => format!("Downloading {file_name}"),
+            FileAction::Upload => format!("Uploading {file_name}"),
+            FileAction::Hash => format!("Hashing {file_name}"),
+        }
+    }
+
+    pub fn get_action_message(&self) -> &'static str {
+        match self {
+            FileAction::Download => "Files downloaded",
+            FileAction::Upload => "Files uploaded",
+            FileAction::Hash => "Files hashed",
+        }
     }
 }

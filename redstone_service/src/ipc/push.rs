@@ -5,21 +5,22 @@ use redstone_common::{
     model::{
         api::{Endpoints, FileUploadRequest, PushRequest as ApiPushRequest, UploadResponse},
         backup::{get_index_file_for_path, IndexFile},
-        fs_tree::FSTree,
         ipc::{
-            push::PushRequest as IpcPushRequest, ConfirmationRequest, IpcMessage,
-            IpcMessageResponse,
+            push::PushRequest as IpcPushRequest, ConfirmationRequest, FileActionProgress,
+            IpcMessage, IpcMessageResponse,
         },
         DomainError, RedstoneError, Result,
     },
     web::api::{handle_response, RedstoneClient},
 };
 use reqwest::Method;
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc;
 
-use crate::{api::update::check_latest_update, backup::file_transfer::send_files};
+use crate::{
+    api::update::check_latest_update, backup::file_transfer::send_files, ipc::send_progress,
+};
 
-use super::socket_loop::prompt_action_confirmation;
+use super::{build_fs_tree_with_progress, prompt_action_confirmation};
 pub async fn handle_push_msg(
     connection: &mut LocalSocketStream,
     push_request: &mut IpcPushRequest,
@@ -39,7 +40,7 @@ pub async fn handle_push_msg(
         });
     }
 
-    let fs_tree = FSTree::build(push_request.path.clone(), None)?;
+    let fs_tree = build_fs_tree_with_progress(connection, push_request.path.clone()).await?;
     let diff = fs_tree.diff(&index_file.last_fs_tree)?;
     let total_size = diff.total_size();
     if !diff.has_changes() {
@@ -75,17 +76,17 @@ pub async fn handle_push_msg(
         .await?;
 
     let push_response: UploadResponse = handle_response(res).await?;
-    let (tx, mut rx) = mpsc::unbounded_channel::<u64>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<FileActionProgress>();
     let (_, send_files_result) = tokio::join!(
-        send_progress(&mut rx, total_size),
+        send_progress(connection.borrow_mut(), &mut rx),
         send_files(
             &push_response.files,
             &push_response.upload_token,
             push_request.path.clone(),
+            total_size,
             tx,
         )
     );
-
     send_files_result?;
 
     let latest_update = check_latest_update(index_file.backup.id.to_owned()).await?;
@@ -107,11 +108,4 @@ pub async fn handle_push_msg(
 
 fn wrap(response: IpcMessageResponse) -> Result<IpcMessage> {
     Ok(IpcMessage::from(response))
-}
-
-async fn send_progress(_progress_receiver: &mut UnboundedReceiver<u64>, _total_size: u64) {
-    // while let Some(sent) = progress_receiver.recv().await {
-    //     println!("UPLOAD PROGRESS!\n{} sent out of {}", sent, total_size);
-    //  // send to cli
-    // }
 }
