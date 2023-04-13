@@ -45,6 +45,7 @@ pub struct TcpMessageResponse<T> {
     pub status: TcpMessageResponseStatus,
     pub data: Option<T>,
     pub reason: Option<String>,
+    pub retry: Option<bool>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
