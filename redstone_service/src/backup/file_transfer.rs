@@ -92,7 +92,6 @@ pub async fn download_files(
     send_message(&mut stream, &packet).await?;
     let response: TcpMessageResponse<Vec<u8>> = receive_message(&mut stream).await?;
     if response.status != TcpMessageResponseStatus::Ok {
-        // TODO: send abort message
         let error = format!(
             "Error commiting finalizing download.\nServer responded: {}",
             response.reason.unwrap()
@@ -129,7 +128,6 @@ async fn send_file<'a>(
 
             let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
             if response.status != TcpMessageResponseStatus::Ok {
-                // TODO: send abort message
                 let error = format!(
                     "Error commiting backup transaction.\nServer responded: {}",
                     response.reason.unwrap()
@@ -141,18 +139,27 @@ async fn send_file<'a>(
             CheckFileMessageFactory::new(upload_token, &file.id).get_tcp_payload()?;
         send_message(stream.borrow_mut(), &check_file_message).await?;
         let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
-        if response.status == TcpMessageResponseStatus::Ok {
-            println!("{} upload complete\n", file.path);
-            break;
-        } else {
-            retry_count += 1;
-            if retry_count > 4 {
+        match response.status {
+            TcpMessageResponseStatus::Error => {
                 return Err(RedstoneError::BaseError(format!(
-                    "File upload retry count exceeded.\nServer returned: {:?}",
+                    "Server returned: {:?}",
                     response.reason.unwrap()
-                )));
+                )))
             }
-        }
+            TcpMessageResponseStatus::Ok if response.retry.is_some() && response.retry.unwrap() => {
+                retry_count += 1;
+                if retry_count > 4 {
+                    return Err(RedstoneError::BaseError(format!(
+                        "Retry count exceeded when checking file {}",
+                        file.path
+                    )));
+                }
+            }
+            _ => {
+                println!("{} upload complete\n", file.path);
+                break;
+            }
+        };
     }
     Ok(())
 }
