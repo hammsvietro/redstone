@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use crate::model::{RedstoneError, Result};
 
@@ -17,7 +17,6 @@ pub struct AuthRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiErrorResponse {
-    pub errors: HashMap<String, Vec<String>>,
     pub stringified_errors: String,
 }
 
