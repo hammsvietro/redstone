@@ -21,6 +21,9 @@ pub enum Commands {
     /// Recursively scan a directory and create a backup with all the files scanned
     Track(TrackArgs),
 
+    /// Set the server address
+    SetServerAddress(SetServerAddressArgs),
+
     /// Check for changes in the current bakcup
     Status,
 
@@ -32,6 +35,12 @@ pub enum Commands {
 #[clap(args_conflicts_with_subcommands = true)]
 pub struct CloneArgs {
     pub backup_name: String,
+}
+
+#[derive(Debug, Args)]
+#[clap(args_conflicts_with_subcommands = true)]
+pub struct SetServerAddressArgs {
+    pub address: String,
 }
 
 #[derive(Debug, Args)]

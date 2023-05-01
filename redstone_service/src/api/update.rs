@@ -12,7 +12,7 @@ pub async fn check_latest_update(backup_id: String) -> Result<Update> {
     let latest_update_response = client
         .send::<()>(
             Method::GET,
-            Endpoints::FetchUpdate(backup_id.to_owned()).get_url(),
+            Endpoints::FetchUpdate(backup_id.to_owned()).get_url()?,
             &None,
         )
         .await?;

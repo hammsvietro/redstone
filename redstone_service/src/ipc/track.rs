@@ -92,7 +92,7 @@ async fn declare<'a>(request: &'a DeclareBackupRequest<'a>) -> Result<UploadResp
     let client = RedstoneClient::new();
 
     let response = client
-        .send(Method::POST, Endpoints::Declare.get_url(), &Some(request))
+        .send(Method::POST, Endpoints::Declare.get_url()?, &Some(request))
         .await?;
 
     handle_response(response).await

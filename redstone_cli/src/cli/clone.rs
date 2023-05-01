@@ -1,6 +1,7 @@
 use std::env::current_dir;
 
 use redstone_common::{
+    config::assert_configuration_and_authentication,
     ipc::send_and_receive,
     model::{
         backup::get_index_file_for_path,
@@ -17,6 +18,7 @@ use crate::{ipc::socket::stablish_connection, utils::handle_confirmation_request
 use super::{models::CloneArgs, progress_bar::handle_progress_bar};
 
 pub fn run_clone_cmd(clone_args: CloneArgs) -> Result<()> {
+    assert_configuration_and_authentication()?;
     let path = current_dir()?;
     let backup_name = clone_args.backup_name;
     let index_file_path = get_index_file_for_path(&path);

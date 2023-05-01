@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::model::{RedstoneError, Result};
+use crate::{
+    config::get_server_config,
+    model::{DomainError, RedstoneError, Result},
+};
 
 use async_trait::async_trait;
 use reqwest::{cookie::Jar, Method, Url};
@@ -25,8 +28,6 @@ impl AuthRequest {
         AuthRequest { email, password }
     }
 }
-
-const API_BASE_URL: &str = "http://127.0.0.1:4000"; // TODO: Change this
 
 //
 // NON-BLOCKING
@@ -62,7 +63,7 @@ pub struct RedstoneClient<S: HttpSend = Sender> {
 
 impl RedstoneClient<Sender> {
     pub fn new() -> Self {
-        let jar = get_jar();
+        let jar = get_jar().unwrap();
         Self {
             client: get_http_client(jar.clone()),
             jar,
@@ -177,7 +178,7 @@ impl<S: BlockingHttpSend> RedstoneBlockingClient<S> {
 
 impl RedstoneBlockingClient<BlockingSender> {
     pub fn new() -> Self {
-        let jar = get_jar();
+        let jar = get_jar().unwrap();
         Self {
             client: get_blocking_http_client(jar.clone()),
             jar,
@@ -200,8 +201,11 @@ impl Default for RedstoneBlockingClient<BlockingSender> {
     }
 }
 
-pub fn get_api_base_url() -> Url {
-    API_BASE_URL.parse().unwrap()
+pub fn get_api_base_url() -> Result<Url> {
+    match get_server_config()? {
+        None => Err(RedstoneError::DomainError(DomainError::NoServerConfigFound)),
+        Some(config) => Ok(config.url.parse().unwrap()),
+    }
 }
 
 fn get_blocking_http_client(cookie_jar: Arc<Jar>) -> reqwest::blocking::Client {

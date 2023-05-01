@@ -33,7 +33,7 @@ pub async fn handle_clone_msg(
     let client = RedstoneClient::new();
     let request = &Some(ApiCloneRequest::new(clone_request.backup_name.clone()));
     let response = client
-        .send(Method::POST, Endpoints::Clone.get_url(), request)
+        .send(Method::POST, Endpoints::Clone.get_url()?, request)
         .await?;
 
     let clone_response: DownloadResponse = handle_response(response).await?;

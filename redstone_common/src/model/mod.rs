@@ -136,6 +136,8 @@ impl Display for ArgumentError {
 pub enum DomainError {
     BackupAlreadyExists(String),
     BackupDoesntExist(String),
+    NoServerConfigFound,
+    NotAuthenticated,
     NotInLatestUpdate,
     AlreadyInLatestUpdate,
     NoChanges,
@@ -165,6 +167,10 @@ impl Display for DomainError {
             .into(),
             Self::ConfirmationNotAccepted => "".into(),
             Self::ErrorDurringProgressEmition => "".into(),
+            Self::NotAuthenticated => "Not authenticated, run redstone auth to authenticate".into(),
+            Self::NoServerConfigFound => {
+                "No server configuration found. Use the command: redstone set-server-address".into()
+            }
         };
         write!(f, "{error}")
     }

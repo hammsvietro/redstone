@@ -50,7 +50,7 @@ pub async fn handle_pull_msg(
     };
 
     let response = client
-        .send(Method::POST, Endpoints::Pull.get_url(), &Some(api_request))
+        .send(Method::POST, Endpoints::Pull.get_url()?, &Some(api_request))
         .await?;
 
     let download_response: DownloadResponse = handle_response(response).await?;

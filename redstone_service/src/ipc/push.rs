@@ -72,7 +72,7 @@ pub async fn handle_push_msg(
     };
     let client = RedstoneClient::new();
     let res = client
-        .send(Method::POST, Endpoints::Push.get_url(), &Some(request))
+        .send(Method::POST, Endpoints::Push.get_url()?, &Some(request))
         .await?;
 
     let push_response: UploadResponse = handle_response(res).await?;

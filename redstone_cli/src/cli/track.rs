@@ -1,6 +1,7 @@
 use std::{env::current_dir, path::PathBuf, str::FromStr};
 
 use redstone_common::{
+    config::assert_configuration_and_authentication,
     ipc::send_and_receive,
     model::{
         ipc::track::TrackRequest,
@@ -17,6 +18,7 @@ use crate::{ipc::socket::stablish_connection, utils::handle_confirmation_request
 use super::{models::TrackArgs, progress_bar::handle_progress_bar};
 
 pub fn run_track_cmd(track_args: TrackArgs) -> Result<()> {
+    assert_configuration_and_authentication()?;
     let path_buf = get_target_path(track_args.path);
     let track_request = TrackRequest {
         base_path: path_buf,

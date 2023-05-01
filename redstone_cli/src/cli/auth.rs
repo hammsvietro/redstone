@@ -1,13 +1,14 @@
 use std::io::Write;
 
 use redstone_common::{
-    config::store_cookies,
+    config::{assert_configuration, store_cookies},
     model::{api::Endpoints, RedstoneError, Result},
     web::api::{AuthRequest, BlockingHttpSend, RedstoneBlockingClient},
 };
 use reqwest::Method;
 
 pub fn run_auth_cmd(client: RedstoneBlockingClient) -> Result<()> {
+    assert_configuration()?;
     let auth_request = prompt_credentials()?;
     login(auth_request, client)
 }
@@ -18,7 +19,7 @@ fn login<S: BlockingHttpSend>(
 ) -> Result<()> {
     let res = client.send(
         Method::POST,
-        Endpoints::Login.get_url(),
+        Endpoints::Login.get_url()?,
         &Some(auth_request),
     )?;
 
@@ -54,7 +55,7 @@ mod tests {
 
     use httpmock::prelude::*;
     use redstone_common::{
-        config::{get_auth_data, get_auth_dir},
+        config::{get_auth_data, get_auth_dir, get_server_config_dir, store_server_config},
         web::api::BlockingHttpSend,
     };
     use reqwest::cookie::Jar;
@@ -65,12 +66,20 @@ mod tests {
         pub is_success: bool,
     }
 
+    struct TestSetup;
+
+    impl TestSetup {
+        pub fn perform() {
+            store_server_config(String::from("http://127.0.0.1:4000")).unwrap();
+        }
+    }
+
     struct TestCleaner;
 
     impl Drop for TestCleaner {
         fn drop(&mut self) {
-            let path = get_auth_dir().unwrap();
-            std::fs::remove_file(path).unwrap();
+            std::fs::remove_file(get_auth_dir().unwrap()).unwrap();
+            std::fs::remove_file(get_server_config_dir().unwrap()).unwrap();
         }
     }
 
@@ -117,6 +126,7 @@ mod tests {
 
     #[test]
     fn should_throw_an_error_when_login_is_incorrect() {
+        TestSetup::perform();
         let sender = AuthMockSender { is_success: false };
         let jar = Arc::new(Jar::default());
         let client = RedstoneBlockingClient::with_sender(sender, jar);
@@ -133,6 +143,7 @@ mod tests {
 
     #[test]
     fn should_save_cookies() {
+        TestSetup::perform();
         let sender = AuthMockSender { is_success: true };
         let jar = Arc::new(Jar::default());
         let client = RedstoneBlockingClient::with_sender(sender, jar);
@@ -144,6 +155,7 @@ mod tests {
 
         let result = login(auth_request, client);
 
+        println!("{:?}", result);
         assert!(result.is_ok());
 
         let auth_data = get_auth_data().unwrap();

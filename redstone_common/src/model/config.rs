@@ -12,3 +12,14 @@ impl AuthData {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ServerConfig {
+    pub url: String,
+}
+
+impl ServerConfig {
+    pub fn new(url: String) -> Self {
+        Self { url }
+    }
+}

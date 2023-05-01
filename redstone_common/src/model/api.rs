@@ -4,7 +4,10 @@ use std::path::PathBuf;
 
 use crate::web::api::get_api_base_url;
 
-use super::fs_tree::{FSTreeDiff, RSFile};
+use super::{
+    fs_tree::{FSTreeDiff, RSFile},
+    Result,
+};
 
 pub enum Endpoints {
     Clone,
@@ -16,8 +19,8 @@ pub enum Endpoints {
 }
 
 impl Endpoints {
-    pub fn get_url(&self) -> Url {
-        let base_url = get_api_base_url();
+    pub fn get_url(&self) -> Result<Url> {
+        let base_url = get_api_base_url()?;
         let sufix: String = match self {
             Self::Login => "/api/login".to_owned(),
 
@@ -29,7 +32,7 @@ impl Endpoints {
 
             Self::FetchUpdate(backup_id) => format!("/api/update/fetch/{}", backup_id.to_owned()),
         };
-        base_url.join(&sufix).unwrap()
+        Ok(base_url.join(&sufix).unwrap())
     }
 }
 
