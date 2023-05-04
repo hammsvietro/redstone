@@ -21,8 +21,8 @@ pub enum Commands {
     /// Recursively scan a directory and create a backup with all the files scanned
     Track(TrackArgs),
 
-    /// Set the server address
-    SetServerAddress(SetServerAddressArgs),
+    /// Configure the server
+    ServerConfig(ServerConfigArgs),
 
     /// Check for changes in the current bakcup
     Status,
@@ -39,8 +39,17 @@ pub struct CloneArgs {
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true)]
-pub struct SetServerAddressArgs {
+pub struct ServerConfigArgs {
+    #[clap(
+        help = "The address should contain only the hostname (do not specify protocols nor ports)"
+    )]
     pub address: String,
+
+    #[clap(long, short = 'p', default_value = "80")]
+    pub port: usize,
+
+    #[clap(long)]
+    pub use_https: bool,
 }
 
 #[derive(Debug, Args)]

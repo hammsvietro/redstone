@@ -1974,7 +1974,6 @@ dependencies = [
  "dirs",
  "ignore",
  "interprocess",
- "regex",
  "reqwest",
  "serde",
  "serde_bytes",

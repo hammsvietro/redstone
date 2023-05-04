@@ -12,9 +12,12 @@ use redstone_common::{
         tcp::{TcpMessage, TcpMessageResponse, TcpMessageResponseStatus},
         RedstoneError, Result,
     },
-    web::tcp::{
-        receive_message, send_message, CheckFileMessageFactory, CommitMessageFactory,
-        DownloadChunkMessageFactory, FileUploadMessageFactory, FinishDownloadMessageFactory,
+    web::{
+        api::get_tcp_base_url,
+        tcp::{
+            receive_message, send_message, CheckFileMessageFactory, CommitMessageFactory,
+            DownloadChunkMessageFactory, FileUploadMessageFactory, FinishDownloadMessageFactory,
+        },
     },
 };
 
@@ -31,7 +34,8 @@ pub async fn send_files(
     total_size: u64,
     progress_emitter: UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
-    let stream = TcpStream::connect("127.0.0.1:8000").await?;
+    println!("{:?}", get_tcp_base_url()?);
+    let stream = TcpStream::connect(get_tcp_base_url()?).await?;
     let mut stream = BufReader::new(stream);
     let mut progress = FileActionProgress {
         operation: FileAction::Upload,
@@ -63,7 +67,7 @@ pub async fn download_files(
     total_size: u64,
     progress_emitter: UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
-    let stream = TcpStream::connect("127.0.0.1:8000").await?;
+    let stream = TcpStream::connect(get_tcp_base_url()?.to_string()).await?;
     let mut stream = BufReader::new(stream);
     let mut progress = FileActionProgress {
         total: total_size,

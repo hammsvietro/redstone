@@ -1,5 +1,5 @@
-use super::get_api_base_url;
 /// Cookie Jar methods
+use super::get_api_base_url;
 use crate::{config::get_auth_data, model::Result};
 use reqwest::cookie::Jar;
 use std::sync::Arc;

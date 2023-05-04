@@ -56,6 +56,7 @@ mod tests {
     use httpmock::prelude::*;
     use redstone_common::{
         config::{get_auth_data, get_auth_dir, get_server_config_dir, store_server_config},
+        model::config::ServerConfig,
         web::api::BlockingHttpSend,
     };
     use reqwest::cookie::Jar;
@@ -70,7 +71,8 @@ mod tests {
 
     impl TestSetup {
         pub fn perform() {
-            store_server_config(String::from("http://127.0.0.1:4000")).unwrap();
+            let server_config = ServerConfig::new(String::from("127.0.0.1"), 4000, false);
+            store_server_config(server_config).unwrap();
         }
     }
 

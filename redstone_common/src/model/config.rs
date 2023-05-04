@@ -15,11 +15,17 @@ impl AuthData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServerConfig {
-    pub url: String,
+    pub hostname: String,
+    pub use_https: bool,
+    pub port: usize,
 }
 
 impl ServerConfig {
-    pub fn new(url: String) -> Self {
-        Self { url }
+    pub fn new(hostname: String, port: usize, use_https: bool) -> Self {
+        Self {
+            hostname,
+            use_https,
+            port,
+        }
     }
 }

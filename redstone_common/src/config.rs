@@ -1,4 +1,3 @@
-use regex::Regex;
 use reqwest::cookie::{CookieStore, Jar};
 
 use super::model::Result;
@@ -9,7 +8,7 @@ use crate::{
     },
     web::api::get_api_base_url,
 };
-use std::{path::PathBuf, sync::Arc};
+use std::{fs::OpenOptions, io::Write, path::PathBuf, sync::Arc};
 
 pub fn assert_app_data_folder_is_created() -> Result<()> {
     let mut dir = dirs::home_dir().unwrap();
@@ -87,17 +86,17 @@ pub fn get_auth_data() -> Result<Option<AuthData>> {
     if !auth_dir.exists() {
         return Ok(None);
     }
-    let content = std::fs::read_to_string(auth_dir)?;
+    let content = std::fs::read(auth_dir)?;
     if content.is_empty() {
         return Ok(None);
     }
-    Ok(bincode::deserialize(content.as_bytes())?)
+    Ok(Some(bincode::deserialize(&content)?))
 }
 
 pub fn store_cookies(cookie_jar: Arc<Jar>) -> Result<()> {
     let base_url = get_api_base_url()?;
     let auth_data = String::from(cookie_jar.cookies(&base_url).unwrap().to_str().unwrap());
-    let data = bincode::serialize(&Some(AuthData::new(auth_data)))?;
+    let data = bincode::serialize(&AuthData::new(auth_data))?;
 
     std::fs::write(get_auth_dir()?, data).unwrap();
     Ok(())
@@ -108,20 +107,21 @@ pub fn get_server_config() -> Result<Option<ServerConfig>> {
     if !config_dir.exists() {
         return Ok(None);
     }
-    let content = std::fs::read_to_string(config_dir)?;
+    let content = std::fs::read(config_dir)?;
     if content.is_empty() {
         return Ok(None);
     }
-    Ok(bincode::deserialize(content.as_bytes())?)
+    Ok(Some(bincode::deserialize(&content)?))
 }
 
-pub fn store_server_config(mut server_address: String) -> Result<()> {
-    let re = Regex::new("^http(s?)://").unwrap();
-    if !re.is_match(&server_address) {
-        server_address = format!("http://{server_address}");
-    }
-    let data = bincode::serialize(&Some(ServerConfig::new(server_address)))?;
-    std::fs::write(get_server_config_dir()?, data).unwrap();
+pub fn store_server_config(config: ServerConfig) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(get_server_config_dir()?)?;
+
+    file.write_all(&bincode::serialize(&config)?)?;
     Ok(())
 }
 
@@ -133,9 +133,9 @@ pub fn assert_configuration() -> Result<()> {
 }
 
 pub fn assert_configuration_and_authentication() -> Result<()> {
+    assert_configuration()?;
     if get_auth_data()?.is_none() {
         return Err(RedstoneError::DomainError(DomainError::NotAuthenticated));
     }
-    assert_configuration()?;
     Ok(())
 }

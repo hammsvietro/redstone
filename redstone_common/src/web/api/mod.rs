@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use crate::{
     config::get_server_config,
@@ -204,7 +204,28 @@ impl Default for RedstoneBlockingClient<BlockingSender> {
 pub fn get_api_base_url() -> Result<Url> {
     match get_server_config()? {
         None => Err(RedstoneError::DomainError(DomainError::NoServerConfigFound)),
-        Some(config) => Ok(config.url.parse().unwrap()),
+        Some(config) => {
+            let protocol = if config.use_https {
+                "https://"
+            } else {
+                "http://"
+            };
+            let mut url = format!("{}{}", protocol, config.hostname);
+            if config.port != 80 {
+                url = format!("{}:{}", url, config.port);
+            }
+            Ok(url.parse().unwrap())
+        }
+    }
+}
+
+pub fn get_tcp_base_url() -> Result<SocketAddr> {
+    match get_server_config()? {
+        None => Err(RedstoneError::DomainError(DomainError::NoServerConfigFound)),
+        Some(config) => {
+            let url = format!("{}:8000", config.hostname);
+            Ok(url.parse().unwrap())
+        }
     }
 }
 

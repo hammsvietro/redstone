@@ -5,7 +5,7 @@ mod clone;
 mod progress_bar;
 mod pull;
 mod push;
-mod set_server_address;
+mod server_config;
 mod status;
 mod track;
 
@@ -23,8 +23,8 @@ pub fn input() -> redstone_common::model::Result<()> {
         Commands::Clone(clone_args) => clone::run_clone_cmd(clone_args),
         Commands::Pull => pull::run_pull_cmd(),
         Commands::Push => push::run_push_cmd(),
-        Commands::SetServerAddress(set_server_args) => {
-            set_server_address::run_set_server_address_args(set_server_args)
+        Commands::ServerConfig(set_server_args) => {
+            server_config::run_server_config(set_server_args)
         }
         Commands::Status => status::run_status_cmd(),
         Commands::Track(track_args) => track::run_track_cmd(track_args),
