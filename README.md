@@ -16,6 +16,7 @@ but the code is written to work with all major operating systems.
 
 ```bash
 git clone https://github.com/hammsvietro/redstone.git
+cd redstone
 ./install-linux.sh
 systemctl enable redstone.service --user --now
 ```
