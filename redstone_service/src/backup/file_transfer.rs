@@ -15,8 +15,9 @@ use redstone_common::{
     web::{
         api::get_tcp_base_url,
         tcp::{
-            receive_message, send_message, CheckFileMessageFactory, CommitMessageFactory,
-            DownloadChunkMessageFactory, FileUploadMessageFactory, FinishDownloadMessageFactory,
+            receive_message, receive_raw_message, send_message, CheckFileMessageFactory,
+            CommitMessageFactory, DownloadChunkMessageFactory, FileUploadMessageFactory,
+            FinishDownloadMessageFactory,
         },
     },
 };
@@ -207,11 +208,7 @@ async fn download_file<'a>(
     loop {
         let packet = factory.get_tcp_payload()?;
         send_message(stream.borrow_mut(), &packet).await?;
-        let response: TcpMessageResponse<Vec<u8>> = receive_message(stream.borrow_mut()).await?;
-        if response.data.is_none() {
-            break;
-        }
-        let data = response.data.unwrap();
+        let data: Vec<u8> = receive_raw_message(stream.borrow_mut()).await?;
         let mut file = tokio::fs::OpenOptions::new()
             .append(true)
             .create(true)
@@ -220,7 +217,7 @@ async fn download_file<'a>(
         file.write_all(&data).await?;
         file_action_progress.progress += data.len() as u64;
         let _ = progress_emitter.send(file_action_progress.clone());
-        if data.len() == TCP_FILE_CHUNK_SIZE {
+        if data.len() < TCP_FILE_CHUNK_SIZE {
             break;
         }
     }

@@ -1,0 +1,14 @@
+[Unit]
+Description=Redstone Service
+After=network.target
+
+[Service]
+Type=simple
+TimeoutSec=120
+SyslogIdentifier=redstone
+ExecStart=/usr/bin/redstone-service
+ExecReload=/bin/kill -HUP ${MAINPID}
+KillSignal=SIGINT
+
+[Install]
+WantedBy=default.target
