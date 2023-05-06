@@ -1963,6 +1963,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "redstone-service"
+version = "0.1.0"
+dependencies = [
+ "async-recursion",
+ "bincode",
+ "chrono",
+ "cron",
+ "interprocess",
+ "redstone_common",
+ "reqwest",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "redstone_common"
 version = "0.1.0"
 dependencies = [
@@ -1979,21 +1994,6 @@ dependencies = [
  "serde_bytes",
  "serde_with 2.3.3",
  "sha2",
- "tokio",
-]
-
-[[package]]
-name = "redstone_service"
-version = "0.1.0"
-dependencies = [
- "async-recursion",
- "bincode",
- "chrono",
- "cron",
- "interprocess",
- "redstone_common",
- "reqwest",
- "serde",
  "tokio",
 ]
 
