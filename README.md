@@ -44,7 +44,7 @@ Configure which server the client points to.
 $ redstone server-config 192.168.0.67 --port 4000
 
 ```
-The address should contain only the hostname (do not specify protocols nor ports)
+The address should contain only the hostname (do not specify protocols or ports)
 
 ### Login
 
