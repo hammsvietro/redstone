@@ -22,8 +22,10 @@ systemctl enable redstone.service --user --now
 ```
 
 #### Requirements
-* Rust
-* Cargo
+* rust
+* cargo
+* openssl
+* pkg-config
 
 # Usage
 
