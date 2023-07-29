@@ -223,7 +223,8 @@ pub fn get_tcp_base_url() -> Result<SocketAddr> {
     match get_server_config()? {
         None => Err(RedstoneError::DomainError(DomainError::NoServerConfigFound)),
         Some(config) => {
-            let url = format!("{}:8000", config.hostname);
+            let protocol = if config.use_https { "wss" } else { "ws" };
+            let url = format!("{}://{}/websocket", protocol, config.hostname);
             Ok(url.parse().unwrap())
         }
     }
@@ -256,4 +257,15 @@ pub async fn handle_response<T: DeserializeOwned>(response: reqwest::Response) -
         )));
     }
     Ok(response.json::<T>().await?)
+}
+
+pub fn get_websockets_base_url() -> Result<String> {
+    match get_server_config()? {
+        None => Err(RedstoneError::DomainError(DomainError::NoServerConfigFound)),
+        Some(config) => {
+            let protocol = if config.use_https { "wss" } else { "ws" };
+            let url = format!("{}://{}/websocket", protocol, config.hostname);
+            Ok(url)
+        }
+    }
 }

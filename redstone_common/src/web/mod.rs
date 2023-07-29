@@ -1,2 +1,2 @@
 pub mod api;
-pub mod tcp;
+pub mod socket;

@@ -9,12 +9,12 @@ use redstone_common::{
     model::{
         api::{File as RSFile, FileOperation},
         ipc::{FileAction, FileActionProgress},
-        tcp::{TcpMessage, TcpMessageResponse, TcpMessageResponseStatus},
+        socket::{SocketMessage, TcpMessageResponse, TcpMessageResponseStatus},
         RedstoneError, Result,
     },
     web::{
-        api::get_tcp_base_url,
-        tcp::{
+        api::{get_tcp_base_url, get_websockets_base_url},
+        socket::{
             receive_message, receive_raw_message, send_message, CheckFileMessageFactory,
             CommitMessageFactory, DownloadChunkMessageFactory, FileUploadMessageFactory,
             FinishDownloadMessageFactory,
@@ -24,8 +24,11 @@ use redstone_common::{
 
 use tokio::{
     io::{AsyncWriteExt, BufReader},
-    net::TcpStream,
     sync::mpsc::UnboundedSender,
+};
+use websocket::{
+    sync::{stream::NetworkStream, Client},
+    ClientBuilder,
 };
 
 pub async fn send_files(
@@ -35,9 +38,8 @@ pub async fn send_files(
     total_size: u64,
     progress_emitter: UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
-    println!("{:?}", get_tcp_base_url()?);
-    let stream = TcpStream::connect(get_tcp_base_url()?).await?;
-    let mut stream = BufReader::new(stream);
+    let url = get_websockets_base_url()?;
+    let client = ClientBuilder::new(&url)?.connect(None)?;
     let mut progress = FileActionProgress {
         operation: FileAction::Upload,
         total: total_size,
@@ -49,7 +51,7 @@ pub async fn send_files(
         .collect::<Vec<&RSFile>>()
     {
         send_file(
-            &mut stream,
+            &mut client,
             file,
             upload_token,
             &root_folder,
@@ -93,8 +95,8 @@ pub async fn download_files(
         .await?;
         println!("downloaded {}", file.path);
     }
-    let packet = FinishDownloadMessageFactory::new(download_token.to_string()).get_tcp_payload()?;
-    send_message(&mut stream, &packet).await?;
+    let packet = FinishDownloadMessageFactory::new(download_token.to_string()).get_payload()?;
+    send_message(&mut stream, &packet)?;
     let response: TcpMessageResponse<Vec<u8>> = receive_message(&mut stream).await?;
     if response.status != TcpMessageResponseStatus::Ok {
         let error = format!(
@@ -110,7 +112,7 @@ pub async fn download_files(
 }
 
 async fn send_file<'a>(
-    stream: &mut BufReader<TcpStream>,
+    client: &mut Client<Box<dyn NetworkStream + std::marker::Send>>,
     file: &RSFile,
     upload_token: &String,
     root_folder: &Path,
@@ -121,17 +123,18 @@ async fn send_file<'a>(
     file_action_progress.current_file_name = file.path.to_owned();
 
     let mut retry_count: u8 = 0;
+    // TODO: Send PrepareFileUploadMessage here
     loop {
         let mut file_upload_message =
-            FileUploadMessageFactory::new(upload_token, file, root_folder.to_path_buf());
+            FileUploadMessageFactory::new(file, root_folder.to_path_buf());
         while file_upload_message.has_data_to_fetch() {
-            let packet = file_upload_message.get_tcp_payload()?;
-            send_message(stream.borrow_mut(), &packet).await?;
+            let packet = file_upload_message.get_payload()?;
+            send_message(client.borrow_mut(), &packet)?;
 
             file_action_progress.progress += file_upload_message.last_chunk_size as u64;
             let _ = progress_emitter.send(file_action_progress.clone());
 
-            let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
+            let response: TcpMessageResponse<()> = receive_message(client.borrow_mut())?;
             if response.status != TcpMessageResponseStatus::Ok {
                 let error = format!(
                     "Error commiting backup transaction.\nServer responded: {}",
@@ -141,9 +144,9 @@ async fn send_file<'a>(
             }
         }
         let check_file_message =
-            CheckFileMessageFactory::new(upload_token, &file.id).get_tcp_payload()?;
-        send_message(stream.borrow_mut(), &check_file_message).await?;
-        let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
+            CheckFileMessageFactory::new(upload_token, &file.id).get_payload()?;
+        send_message(client.borrow_mut(), &check_file_message)?;
+        let response: TcpMessageResponse<()> = receive_message(client.borrow_mut())?;
         match response.status {
             TcpMessageResponseStatus::Error => {
                 return Err(RedstoneError::BaseError(format!(
@@ -170,7 +173,7 @@ async fn send_file<'a>(
 }
 
 async fn send_commit_msg(stream: &mut BufReader<TcpStream>, upload_token: &str) -> Result<()> {
-    let commit_payload = CommitMessageFactory::new(upload_token.to_owned()).get_tcp_payload()?;
+    let commit_payload = CommitMessageFactory::new(upload_token.to_owned()).get_payload()?;
     println!("Sending commit msg!");
     send_message(stream.borrow_mut(), &commit_payload).await?;
     let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
@@ -206,8 +209,8 @@ async fn download_file<'a>(
     }
     let mut factory = DownloadChunkMessageFactory::new(download_token.clone(), file.id.clone());
     loop {
-        let packet = factory.get_tcp_payload()?;
-        send_message(stream.borrow_mut(), &packet).await?;
+        let packet = factory.get_payload()?;
+        send_message(stream.borrow_mut(), &packet)?;
         let data: Vec<u8> = receive_raw_message(stream.borrow_mut()).await?;
         let mut file = tokio::fs::OpenOptions::new()
             .append(true)

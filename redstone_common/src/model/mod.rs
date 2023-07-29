@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinError;
+use websocket::WebSocketError;
 
 use crate::web::api::ApiErrorResponse;
 
@@ -10,7 +11,7 @@ pub mod backup;
 pub mod config;
 pub mod fs_tree;
 pub mod ipc;
-pub mod tcp;
+pub mod socket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RedstoneError {
@@ -26,6 +27,7 @@ pub enum RedstoneError {
     NoHomeDir,
     SerdeError(String),
     TokioError(String),
+    WebsocketError(String),
     Unauthorized,
 }
 
@@ -50,6 +52,24 @@ impl From<JoinError> for RedstoneError {
 impl From<std::io::Error> for RedstoneError {
     fn from(error: std::io::Error) -> Self {
         RedstoneError::IOError(error.to_string())
+    }
+}
+
+impl From<WebSocketError> for RedstoneError {
+    fn from(error: WebSocketError) -> Self {
+        RedstoneError::WebsocketError(error.to_string())
+    }
+}
+
+impl From<websocket::client::ParseError> for RedstoneError {
+    fn from(error: websocket::client::ParseError) -> Self {
+        RedstoneError::WebsocketError(error.to_string())
+    }
+}
+
+impl From<serde_json::Error> for RedstoneError {
+    fn from(error: serde_json::Error) -> Self {
+        RedstoneError::SerdeError(error.to_string())
     }
 }
 
@@ -111,6 +131,7 @@ impl Display for RedstoneError {
                 format!("An error occoured while serializing or serializing data:\n{error}")
             }
             Self::TokioError(error) => error.to_owned(),
+            Self::WebsocketError(error) => error.to_owned(),
         };
         write!(f, "{error}")
     }

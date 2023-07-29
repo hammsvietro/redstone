@@ -3,6 +3,10 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufReader},
     net::TcpStream,
 };
+use websocket::{
+    sync::{stream::NetworkStream, Client},
+    OwnedMessage,
+};
 
 use std::{
     fs::File,
@@ -14,39 +18,35 @@ use crate::{
     constants::TCP_FILE_CHUNK_SIZE,
     model::{
         api,
-        tcp::{
-            AbortMessage, CheckFileMessage, CommitMessage, DownloadChunkMessage, FileUploadMessage,
-            FinishDownloadMessage, TcpMessage, TcpOperation,
+        socket::{
+            AbortMessage, CheckFileMessage, CommitMessage, DownloadChunkMessage,
+            FinishDownloadMessage, SocketMessage, SocketOperation,
         },
         Result,
     },
 };
 
-pub async fn send_message(stream: &mut BufReader<TcpStream>, packet: &[u8]) -> Result<()> {
-    let packet_size = get_message_size_in_bytes(packet);
-    Ok(stream.write_all(&[&packet_size, packet].concat()).await?)
+pub fn send_message(
+    client: &mut Client<Box<dyn NetworkStream + std::marker::Send>>,
+    message: &OwnedMessage,
+) -> Result<()> {
+    Ok(client.send_message(message)?)
 }
 
-pub async fn receive_message<T: DeserializeOwned>(stream: &mut BufReader<TcpStream>) -> Result<T> {
-    let mut incoming_packet_buf: [u8; 4] = [0; 4];
-    stream.read_exact(&mut incoming_packet_buf).await?;
-    let incoming_packet_size = u32::from_be_bytes(incoming_packet_buf);
-    let mut buffer = vec![0; incoming_packet_size as usize];
-    stream.read_exact(&mut buffer).await?;
-    Ok(bson::from_slice(&buffer)?)
+pub fn receive_message<T: DeserializeOwned>(
+    client: &mut Client<Box<dyn NetworkStream + std::marker::Send>>,
+) -> Result<T> {
+    match client.recv_message()? {
+        OwnedMessage::Text(str) => Ok(serde_json::from_str(&str)?),
+        OwnedMessage::Binary(bin) => Ok(serde_json::from_slice(&bin)?),
+        _ => unreachable!(),
+    }
 }
 
-pub async fn receive_raw_message(stream: &mut BufReader<TcpStream>) -> Result<Vec<u8>> {
-    let mut incoming_packet_buf: [u8; 4] = [0; 4];
-    stream.read_exact(&mut incoming_packet_buf).await?;
-    let incoming_packet_size = u32::from_be_bytes(incoming_packet_buf);
-    let mut buffer = vec![0; incoming_packet_size as usize];
-    stream.read_exact(&mut buffer).await?;
-    Ok(buffer)
-}
-
-fn get_message_size_in_bytes(message: &[u8]) -> [u8; 4] {
-    (message.len() as u32).to_be_bytes()
+pub fn receive_raw_message(
+    client: &mut Client<Box<dyn NetworkStream + std::marker::Send>>,
+) -> Result<OwnedMessage> {
+    Ok(client.recv_message()?)
 }
 
 pub struct AbortUpdateMessageFactory {
@@ -59,20 +59,33 @@ impl AbortUpdateMessageFactory {
     }
 }
 
-impl TcpMessage for AbortUpdateMessageFactory {
-    const OPERATION: TcpOperation = TcpOperation::Abort;
-    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+impl SocketMessage for AbortUpdateMessageFactory {
+    const OPERATION: SocketOperation = SocketOperation::Abort;
+    fn get_payload(&mut self) -> Result<OwnedMessage> {
         let message = AbortMessage {
             upload_token: self.upload_token.to_string(),
             operation: Self::OPERATION,
         };
-        Ok(bson::to_vec(&message)?)
+
+        Ok(OwnedMessage::Text(serde_json::to_string(&message)?))
     }
 }
 
+// pub struct DeclareFileMessageFactory {
+//     upload_token: String,
+//     file_id: String,
+// }
+
+// impl DeclareFileMessageFactory {
+//     pub fn new(upload_token: &String, file: &api::File) -> Self {
+//         Self {
+//             upload_token: upload_token.to_owned(),
+//             file_id: file.id.to_owned(),
+//         }
+//     }
+// }
+
 pub struct FileUploadMessageFactory {
-    upload_token: String,
-    file_id: String,
     file_path: PathBuf,
     chunk_offset: usize,
     file_size: usize,
@@ -82,12 +95,10 @@ pub struct FileUploadMessageFactory {
 }
 
 impl FileUploadMessageFactory {
-    pub fn new(upload_token: &String, file: &api::File, root_folder: PathBuf) -> Self {
+    pub fn new(file: &api::File, root_folder: PathBuf) -> Self {
         let file_path = root_folder.join(file.path.clone());
         let file_size = std::fs::metadata(&file_path).unwrap().len();
         Self {
-            upload_token: upload_token.to_owned(),
-            file_id: file.id.to_string(),
             file_path,
             chunk_offset: 0,
             file_size: file_size as usize,
@@ -119,21 +130,11 @@ impl FileUploadMessageFactory {
     }
 }
 
-impl TcpMessage for FileUploadMessageFactory {
-    const OPERATION: TcpOperation = TcpOperation::UploadChunk;
+impl SocketMessage for FileUploadMessageFactory {
+    const OPERATION: SocketOperation = SocketOperation::UploadChunk;
 
-    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
-        let data = self.get_next_chunk()?;
-        let message = FileUploadMessage {
-            upload_token: self.upload_token.to_string(),
-            operation: TcpOperation::UploadChunk,
-            file_id: self.file_id.to_string(),
-            file_size: self.file_size,
-            data,
-            last_chunk: !self.has_data_to_fetch(),
-        };
-        let encoded = bson::to_vec(&message)?;
-        Ok(encoded)
+    fn get_payload(&mut self) -> Result<OwnedMessage> {
+        Ok(OwnedMessage::Binary(self.get_next_chunk()?))
     }
 }
 
@@ -147,15 +148,15 @@ impl CommitMessageFactory {
     }
 }
 
-impl TcpMessage for CommitMessageFactory {
-    const OPERATION: TcpOperation = TcpOperation::Commit;
+impl SocketMessage for CommitMessageFactory {
+    const OPERATION: SocketOperation = SocketOperation::Commit;
 
-    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+    fn get_payload(&mut self) -> Result<OwnedMessage> {
         let message = CommitMessage {
             upload_token: self.upload_token.to_string(),
             operation: Self::OPERATION,
         };
-        Ok(bson::to_vec(&message)?)
+        Ok(OwnedMessage::Text(serde_json::to_string(&message)?))
     }
 }
 
@@ -173,16 +174,16 @@ impl CheckFileMessageFactory {
     }
 }
 
-impl TcpMessage for CheckFileMessageFactory {
-    const OPERATION: TcpOperation = TcpOperation::CheckFile;
-    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+impl SocketMessage for CheckFileMessageFactory {
+    const OPERATION: SocketOperation = SocketOperation::CheckFile;
+    fn get_payload(&mut self) -> Result<OwnedMessage> {
         let message = CheckFileMessage {
             upload_token: self.upload_token.to_string(),
             file_id: self.file_id.to_string(),
             operation: Self::OPERATION,
         };
 
-        Ok(bson::to_vec(&message)?)
+        Ok(OwnedMessage::Text(serde_json::to_string(&message)?))
     }
 }
 
@@ -202,9 +203,9 @@ impl DownloadChunkMessageFactory {
     }
 }
 
-impl TcpMessage for DownloadChunkMessageFactory {
-    const OPERATION: TcpOperation = TcpOperation::DownloadChunk;
-    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+impl SocketMessage for DownloadChunkMessageFactory {
+    const OPERATION: SocketOperation = SocketOperation::DownloadChunk;
+    fn get_payload(&mut self) -> Result<OwnedMessage> {
         let message = DownloadChunkMessage {
             operation: Self::OPERATION,
             download_token: self.download_token.to_string(),
@@ -213,7 +214,7 @@ impl TcpMessage for DownloadChunkMessageFactory {
             offset: self.offset,
         };
         self.offset += 1;
-        Ok(bson::to_vec(&message)?)
+        Ok(OwnedMessage::Text(serde_json::to_string(&message)?))
     }
 }
 
@@ -227,13 +228,13 @@ impl FinishDownloadMessageFactory {
     }
 }
 
-impl TcpMessage for FinishDownloadMessageFactory {
-    const OPERATION: TcpOperation = TcpOperation::FinishDownload;
-    fn get_tcp_payload(&mut self) -> Result<Vec<u8>> {
+impl SocketMessage for FinishDownloadMessageFactory {
+    const OPERATION: SocketOperation = SocketOperation::FinishDownload;
+    fn get_payload(&mut self) -> Result<OwnedMessage> {
         let message = FinishDownloadMessage {
             download_token: self.download_token.to_string(),
             operation: Self::OPERATION,
         };
-        Ok(bson::to_vec(&message)?)
+        Ok(OwnedMessage::Text(serde_json::to_string(&message)?))
     }
 }
