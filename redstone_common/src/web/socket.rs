@@ -1,8 +1,4 @@
 use serde::de::DeserializeOwned;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, BufReader},
-    net::TcpStream,
-};
 use websocket::{
     sync::{stream::NetworkStream, Client},
     OwnedMessage,

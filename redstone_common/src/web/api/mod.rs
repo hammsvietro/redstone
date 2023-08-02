@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     config::get_server_config,
@@ -214,17 +214,6 @@ pub fn get_api_base_url() -> Result<Url> {
             if config.port != 80 {
                 url = format!("{}:{}", url, config.port);
             }
-            Ok(url.parse().unwrap())
-        }
-    }
-}
-
-pub fn get_tcp_base_url() -> Result<SocketAddr> {
-    match get_server_config()? {
-        None => Err(RedstoneError::DomainError(DomainError::NoServerConfigFound)),
-        Some(config) => {
-            let protocol = if config.use_https { "wss" } else { "ws" };
-            let url = format!("{}://{}/websocket", protocol, config.hostname);
             Ok(url.parse().unwrap())
         }
     }

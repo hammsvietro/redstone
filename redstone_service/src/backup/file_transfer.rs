@@ -9,11 +9,11 @@ use redstone_common::{
     model::{
         api::{File as RSFile, FileOperation},
         ipc::{FileAction, FileActionProgress},
-        socket::{SocketMessage, TcpMessageResponse, TcpMessageResponseStatus},
+        socket::{SocketMessage, SocketMessageResponse, SocketMessageResponseStatus},
         RedstoneError, Result,
     },
     web::{
-        api::{get_tcp_base_url, get_websockets_base_url},
+        api::get_websockets_base_url,
         socket::{
             receive_message, receive_raw_message, send_message, CheckFileMessageFactory,
             CommitMessageFactory, DownloadChunkMessageFactory, FileUploadMessageFactory,
@@ -22,13 +22,10 @@ use redstone_common::{
     },
 };
 
-use tokio::{
-    io::{AsyncWriteExt, BufReader},
-    sync::mpsc::UnboundedSender,
-};
+use tokio::{io::AsyncWriteExt, sync::mpsc::UnboundedSender};
 use websocket::{
     sync::{stream::NetworkStream, Client},
-    ClientBuilder,
+    ClientBuilder, OwnedMessage,
 };
 
 pub async fn send_files(
@@ -39,7 +36,7 @@ pub async fn send_files(
     progress_emitter: UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
     let url = get_websockets_base_url()?;
-    let client = ClientBuilder::new(&url)?.connect(None)?;
+    let mut client = ClientBuilder::new(&url)?.connect(None)?;
     let mut progress = FileActionProgress {
         operation: FileAction::Upload,
         total: total_size,
@@ -60,7 +57,7 @@ pub async fn send_files(
         )
         .await?;
     }
-    send_commit_msg(&mut stream, upload_token).await
+    send_commit_msg(&mut client, upload_token).await
 }
 
 pub async fn download_files(
@@ -70,8 +67,7 @@ pub async fn download_files(
     total_size: u64,
     progress_emitter: UnboundedSender<FileActionProgress>,
 ) -> Result<()> {
-    let stream = TcpStream::connect(get_tcp_base_url()?.to_string()).await?;
-    let mut stream = BufReader::new(stream);
+    let mut client = ClientBuilder::new(&get_websockets_base_url()?)?.connect(None)?;
     let mut progress = FileActionProgress {
         total: total_size,
         operation: FileAction::Download,
@@ -85,7 +81,7 @@ pub async fn download_files(
     {
         progress.current_file_name = file.path.to_owned();
         download_file(
-            &mut stream,
+            &mut client,
             file,
             &root,
             download_token.clone(),
@@ -96,9 +92,9 @@ pub async fn download_files(
         println!("downloaded {}", file.path);
     }
     let packet = FinishDownloadMessageFactory::new(download_token.to_string()).get_payload()?;
-    send_message(&mut stream, &packet)?;
-    let response: TcpMessageResponse<Vec<u8>> = receive_message(&mut stream).await?;
-    if response.status != TcpMessageResponseStatus::Ok {
+    send_message(&mut client, &packet)?;
+    let response: SocketMessageResponse<Vec<u8>> = receive_message(&mut client)?;
+    if response.status != SocketMessageResponseStatus::Ok {
         let error = format!(
             "Error commiting finalizing download.\nServer responded: {}",
             response.reason.unwrap()
@@ -134,8 +130,8 @@ async fn send_file<'a>(
             file_action_progress.progress += file_upload_message.last_chunk_size as u64;
             let _ = progress_emitter.send(file_action_progress.clone());
 
-            let response: TcpMessageResponse<()> = receive_message(client.borrow_mut())?;
-            if response.status != TcpMessageResponseStatus::Ok {
+            let response: SocketMessageResponse<()> = receive_message(client.borrow_mut())?;
+            if response.status != SocketMessageResponseStatus::Ok {
                 let error = format!(
                     "Error commiting backup transaction.\nServer responded: {}",
                     response.reason.unwrap()
@@ -146,15 +142,17 @@ async fn send_file<'a>(
         let check_file_message =
             CheckFileMessageFactory::new(upload_token, &file.id).get_payload()?;
         send_message(client.borrow_mut(), &check_file_message)?;
-        let response: TcpMessageResponse<()> = receive_message(client.borrow_mut())?;
+        let response: SocketMessageResponse<()> = receive_message(client.borrow_mut())?;
         match response.status {
-            TcpMessageResponseStatus::Error => {
+            SocketMessageResponseStatus::Error => {
                 return Err(RedstoneError::BaseError(format!(
                     "Server returned: {:?}",
                     response.reason.unwrap()
                 )))
             }
-            TcpMessageResponseStatus::Ok if response.retry.is_some() && response.retry.unwrap() => {
+            SocketMessageResponseStatus::Ok
+                if response.retry.is_some() && response.retry.unwrap() =>
+            {
                 retry_count += 1;
                 if retry_count > 4 {
                     return Err(RedstoneError::BaseError(format!(
@@ -172,12 +170,15 @@ async fn send_file<'a>(
     Ok(())
 }
 
-async fn send_commit_msg(stream: &mut BufReader<TcpStream>, upload_token: &str) -> Result<()> {
+async fn send_commit_msg(
+    client: &mut Client<Box<dyn NetworkStream + std::marker::Send>>,
+    upload_token: &str,
+) -> Result<()> {
     let commit_payload = CommitMessageFactory::new(upload_token.to_owned()).get_payload()?;
     println!("Sending commit msg!");
-    send_message(stream.borrow_mut(), &commit_payload).await?;
-    let response: TcpMessageResponse<()> = receive_message(stream.borrow_mut()).await?;
-    if response.status != TcpMessageResponseStatus::Ok {
+    send_message(client.borrow_mut(), &commit_payload)?;
+    let response: SocketMessageResponse<()> = receive_message(client.borrow_mut())?;
+    if response.status != SocketMessageResponseStatus::Ok {
         let error = format!(
             "Error commiting backup transaction.\nServer responded: {}",
             response.reason.unwrap()
@@ -188,7 +189,7 @@ async fn send_commit_msg(stream: &mut BufReader<TcpStream>, upload_token: &str) 
 }
 
 async fn download_file<'a>(
-    stream: &mut BufReader<TcpStream>,
+    client: &mut Client<Box<dyn NetworkStream + std::marker::Send>>,
     file: &RSFile,
     root: &Path,
     download_token: String,
@@ -210,8 +211,11 @@ async fn download_file<'a>(
     let mut factory = DownloadChunkMessageFactory::new(download_token.clone(), file.id.clone());
     loop {
         let packet = factory.get_payload()?;
-        send_message(stream.borrow_mut(), &packet)?;
-        let data: Vec<u8> = receive_raw_message(stream.borrow_mut()).await?;
+        send_message(client.borrow_mut(), &packet)?;
+        let message = receive_raw_message(client.borrow_mut())?;
+        let OwnedMessage::Binary(data) = message else {
+            unreachable!()
+        };
         let mut file = tokio::fs::OpenOptions::new()
             .append(true)
             .create(true)
